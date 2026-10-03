@@ -103,4 +103,16 @@ export default {
   // zones
   z_tropical: 'Tropical', z_subtropical: 'Subtropical', z_temperate: 'Temperado', z_cold: 'Inverno frio',
   z_arid: 'árido', z_semiarid: 'semiárido', z_subhumid_dry: 'subúmido seco', z_subhumid: 'subúmido', z_humid: 'úmido',
+  act_title: 'Plano de ação — o que fazer e quando',
+  act_sub: 'Operações mês a mês para esta rotação. Adicione-as ao calendário do celular como lembretes.',
+  act_sow: 'Prepare o solo e semeie {crop}.',
+  act_inoc: 'Inocule a semente de {crop} com rizóbio antes do plantio — nitrogênio de graça.',
+  act_fert: 'Aplique cerca de {n} kg N/ha em {crop}: metade no plantio, metade 4–6 semanas depois.',
+  act_irr: 'Planeje cerca de {mm} de irrigação para {crop} nas semanas mais secas.',
+  act_variety: 'Escolha uma variedade de {crop} tolerante à seca e ao calor; considere o seguro agrícola.',
+  act_harvest: 'Colha {crop}; deixe a palhada sobre o solo.',
+  act_cover: 'Logo após a colheita, semeie a planta de cobertura {crop}.',
+  act_term: 'Encerre a cobertura {crop} (rolo-faca, roçada ou pastejo) 2–3 semanas antes do próximo plantio.',
+  act_double: 'Semeie a segunda safra de {crop} logo após a colheita.',
+  ics: 'Adicionar ao calendário',
 };

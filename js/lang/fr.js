@@ -103,4 +103,16 @@ export default {
   // zones
   z_tropical: 'Tropical', z_subtropical: 'Subtropical', z_temperate: 'Tempéré', z_cold: 'Hiver froid',
   z_arid: 'aride', z_semiarid: 'semi-aride', z_subhumid_dry: 'subhumide sec', z_subhumid: 'subhumide', z_humid: 'humide',
+  act_title: 'Plan d’action — quoi faire et quand',
+  act_sub: 'Travaux mois par mois pour cette rotation. Ajoutez-les comme rappels dans le calendrier de votre téléphone.',
+  act_sow: 'Préparez le lit de semences et semez {crop}.',
+  act_inoc: 'Inoculez la semence de {crop} avec du rhizobium avant le semis — de l’azote gratuit.',
+  act_fert: 'Apportez environ {n} kg N/ha à {crop} : moitié au semis, moitié 4–6 semaines plus tard.',
+  act_irr: 'Prévoyez environ {mm} d’irrigation pour {crop} pendant les semaines les plus sèches.',
+  act_variety: 'Choisissez une variété de {crop} tolérante à la sécheresse et à la chaleur ; pensez à l’assurance récolte.',
+  act_harvest: 'Récoltez {crop} ; laissez les résidus à la surface du sol.',
+  act_cover: 'Juste après la récolte, semez le couvert {crop}.',
+  act_term: 'Détruisez le couvert {crop} (rouleau, fauche ou pâturage) 2–3 semaines avant le semis suivant.',
+  act_double: 'Semez la seconde culture {crop} juste après la récolte.',
+  ics: 'Ajouter au calendrier',
 };

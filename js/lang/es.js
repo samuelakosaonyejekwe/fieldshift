@@ -103,4 +103,16 @@ export default {
   // zones
   z_tropical: 'Tropical', z_subtropical: 'Subtropical', z_temperate: 'Templado', z_cold: 'Invierno frío',
   z_arid: 'árido', z_semiarid: 'semiárido', z_subhumid_dry: 'subhúmedo seco', z_subhumid: 'subhúmedo', z_humid: 'húmedo',
+  act_title: 'Plan de acción — qué hacer y cuándo',
+  act_sub: 'Labores mes a mes para esta rotación. Agréguelas al calendario de su teléfono como recordatorios.',
+  act_sow: 'Prepare la cama de siembra y siembre {crop}.',
+  act_inoc: 'Inocule la semilla de {crop} con rizobio antes de sembrar — nitrógeno gratis.',
+  act_fert: 'Aplique unos {n} kg N/ha a {crop}: la mitad al sembrar y la mitad 4–6 semanas después.',
+  act_irr: 'Prevea unos {mm} de riego para {crop} en las semanas más secas.',
+  act_variety: 'Elija una variedad de {crop} tolerante a sequía y calor; considere un seguro agrícola.',
+  act_harvest: 'Coseche {crop}; deje los rastrojos sobre el suelo.',
+  act_cover: 'Justo después de la cosecha, siembre el cultivo de cobertura {crop}.',
+  act_term: 'Termine el cultivo de cobertura {crop} (rolo, corte o pastoreo) 2–3 semanas antes de la siguiente siembra.',
+  act_double: 'Siembre el segundo cultivo {crop} justo después de la cosecha.',
+  ics: 'Agregar al calendario',
 };

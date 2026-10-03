@@ -648,6 +648,8 @@ function planDetail(r, label) {
       <ul class="reasons big">${r.reasons?.map((x) => `<li class="${x.warn ? 'w' : ''}">${x.ic} ${esc(reasonText(x))}</li>`).join('') || ''}</ul></section>
   </div>
   <section class="card flat"><h3>${esc(t('calendar'))}</h3>${CH.calendar(r)}</section>
+  <section class="card flat"><h3>✅ ${esc(t('act_title'))}</h3><p class="muted small">${esc(t('act_sub'))}</p>${actionsHTML(r)}
+    <button class="btn sm noprint" data-act="ics">📅 ${esc(t('ics'))}</button></section>
   <section class="card flat">${metricsRow(r, isBase ? null : b)}</section>
   <div class="grid2 tight">
     <section class="card flat"><h3>${esc(t('score_vs'))}</h3>${CH.compareBars(rows, names)}</section>
@@ -661,6 +663,63 @@ function planDetail(r, label) {
     <tbody>${r.years.map((y, i) => `<tr><td>${i + 1}</td><td>${CROP[y.id].ic} ${esc(cropName(y.id))}</td><td>${monthName(y.plant)}</td><td>${monthName(y.harv)}</td><td>${U.n(U.tha(y.yield), 1)} ${U.thaL}</td><td>${U.n(U.kg(y.fert))}</td><td>${U.n(U.mm(y.irr))}</td><td>${Math.round(y.pFail * 100)}%</td><td>${y.sec.id ? `${CROP[y.sec.id].ic} ${esc(cropName(y.sec.id))} <small>(${esc(t(y.sec.type))}, ${monthName(y.sec.start)}–${monthName(y.sec.end)})</small>` : esc(t(y.sec.type === 'none' ? 'none' : 'fallow'))}</td></tr>`).join('')}</tbody></table></div>
   </section>
   <p class="muted small">${esc(t('disclaimer'))}</p>`;
+}
+
+// ---------------- Action plan ----------------
+// Turns a rotation into dated field operations, starting from the next season.
+function actions(r) {
+  const ev = [];
+  r.years.forEach((y, i) => {
+    const c = CROP[y.id], o = i * 12;
+    ev.push({ m: o + y.plant, k: 'act_sow', p: { crop: y.id }, ic: '🌱' });
+    if (c.nfix) ev.push({ m: o + y.plant, k: 'act_inoc', p: { crop: y.id }, ic: '🧫' });
+    if (y.fert > 10) ev.push({ m: o + y.plant, k: 'act_fert', p: { crop: y.id, n: Math.round(U.kg(y.fert)) }, ic: '🧪' });
+    if (y.irr > 20) ev.push({ m: o + y.plant + 1, k: 'act_irr', p: { crop: y.id, mm: `${U.n(U.mm(y.irr))} ${U.mmL}` }, ic: '💧' });
+    if (y.pFail > 0.15) ev.push({ m: o + y.plant - 1, k: 'act_variety', p: { crop: y.id }, ic: '⚠️' });
+    ev.push({ m: o + y.harv, k: 'act_harvest', p: { crop: y.id }, ic: '🌾' });
+    if (y.sec.type === 'cover') {
+      ev.push({ m: o + y.sec.start, k: 'act_cover', p: { crop: y.sec.id }, ic: '🍀' });
+      if (!y.sec.mulch) ev.push({ m: o + y.sec.end, k: 'act_term', p: { crop: y.sec.id }, ic: '✂️' });
+    } else if (y.sec.type === 'double') {
+      ev.push({ m: o + y.sec.start, k: 'act_double', p: { crop: y.sec.id }, ic: '➕' });
+      ev.push({ m: o + y.sec.end, k: 'act_harvest', p: { crop: y.sec.id }, ic: '🌾' });
+    }
+  });
+  ev.sort((a, b) => a.m - b.m);
+  // shift so the first operation falls in the coming 12 months
+  const now = new Date(), cm = now.getFullYear() * 12 + now.getMonth();
+  const first = ev[0]?.m ?? 0;
+  const start = cm + ((((first - now.getMonth()) % 12) + 12) % 12) - first;
+  return ev.map((e) => { const abs = start + e.m; return { ...e, year: Math.floor(abs / 12), month: ((abs % 12) + 12) % 12, text: t(e.k, { ...e.p, crop: cropName(e.p.crop) }) }; });
+}
+function actionsHTML(r) {
+  const ev = actions(r);
+  let h = '<ol class="acts">', last = '';
+  for (const e of ev) {
+    const lbl = `${monthName(e.month, 'long')} ${e.year}`;
+    h += `<li>${lbl !== last ? `<span class="act-m">${esc(lbl)}</span>` : '<span class="act-m"></span>'}<span>${e.ic} ${esc(e.text)}</span></li>`;
+    last = lbl;
+  }
+  return h + '</ol>';
+}
+function downloadICS(r) {
+  const ev = actions(r);
+  const pad = (n) => String(n).padStart(2, '0');
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FieldShift//EN', 'CALSCALE:GREGORIAN'];
+  ev.forEach((e, i) => {
+    const d = `${e.year}${pad(e.month + 1)}01`;
+    const d2 = `${e.year}${pad(e.month + 1)}08`;
+    lines.push('BEGIN:VEVENT', `UID:fs-${Date.now()}-${i}@fieldshift`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${d2}`,
+      `SUMMARY:${e.text.replace(/[,;]/g, (x) => '\\' + x)}`, `DESCRIPTION:FieldShift — ${(S.farm?.name || '').replace(/[,;]/g, ' ')}`,
+      'BEGIN:VALARM', 'TRIGGER:-P2D', 'ACTION:DISPLAY', `DESCRIPTION:${e.text.replace(/[,;]/g, ' ')}`, 'END:VALARM', 'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'fieldshift-plan.ics';
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
 // ---------------- CROP LAB ----------------
@@ -816,15 +875,39 @@ function planSpeech(r, idx) {
   });
   return `${idx >= 0 ? `#${idx + 1}. ` : ''}${parts.join('. ')}. ${t('score')} ${Math.round(r.total)}. ${(r.reasons || []).map(reasonText).join(' ')}`;
 }
+// Warm, unhurried baritone narration: deepest male voice on the device, lowered pitch, slow pace,
+// spoken sentence by sentence with small pauses.
+const MALE = /(guy|davis|christopher|eric|roger|steffan|brian|ryan|thomas|daniel|alex|fred|aaron|arthur|gordon|oliver|male|man|david|mark|george|james|jorge|diego|pablo|raul|henri|paul|claude|antonio|ricardo|duarte|madhur|prabhat|hemant|rafiki|daudi)/i;
+const FEMALE = /(female|woman|zira|aria|jenny|samantha|victoria|karen|moira|tessa|susan|hazel|libby|sonia|natasha|catherine|amelie|helena|laura|elena|paulina|monica|luciana|francisca|heera|swara|kalpana|zuri|rehema)/i;
+let voiceCache = null;
+function pickVoice(code) {
+  const vs = speechSynthesis.getVoices().filter((v) => v.lang && v.lang.toLowerCase().startsWith(code.slice(0, 2)));
+  if (!vs.length) return null;
+  const rank = (v) => (MALE.test(v.name) ? 0 : FEMALE.test(v.name) ? 3 : 1) - (/natural|neural|online|premium|enhanced/i.test(v.name) ? 0.5 : 0) + (v.lang.toLowerCase() === code.toLowerCase() ? 0 : 0.2);
+  return vs.sort((a, b) => rank(a) - rank(b))[0];
+}
 function speak(text) {
   if (!('speechSynthesis' in window)) return toast('🔇');
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text.replace(/[^\p{L}\p{N}\s.,:;%+\-–()$]/gu, ' '));
-  u.lang = VOICE[lang()] || 'en-US';
-  const v = speechSynthesis.getVoices().find((x) => x.lang?.toLowerCase().startsWith(u.lang.slice(0, 2)));
-  if (v) u.voice = v;
-  u.rate = 0.95;
-  speechSynthesis.speak(u);
+  const code = VOICE[lang()] || 'en-US';
+  const go2 = () => {
+    const v = pickVoice(code);
+    const female = v && FEMALE.test(v.name) && !MALE.test(v.name);
+    const clean = text.replace(/[^\p{L}\p{N}\s.,:;%+\-–()$]/gu, ' ').replace(/\s+/g, ' ');
+    const parts = clean.split(/(?<=[.;:])\s+/).filter((x) => x.trim());
+    parts.forEach((part) => {
+      const u = new SpeechSynthesisUtterance(part);
+      u.lang = code; if (v) u.voice = v;
+      u.pitch = female ? 0.5 : 0.62;   // baritone register
+      u.rate = 0.84;                    // smooth, unhurried
+      u.volume = 1;
+      speechSynthesis.speak(u);
+    });
+  };
+  let started = false;
+  const once = () => { if (!started) { started = true; go2(); } };
+  if (speechSynthesis.getVoices().length || voiceCache) once();
+  else { speechSynthesis.onvoiceschanged = () => { voiceCache = true; once(); }; setTimeout(once, 700); }
 }
 function stopSpeak() { try { speechSynthesis.cancel(); } catch { /* none */ } }
 function shareURL() {
@@ -868,6 +951,7 @@ const ACT = {
   openPlan: (a) => { const i = +a.dataset.i; openPlan = i < 0 ? res.baseline : res.top[i]; sheet(planDetail(openPlan, i < 0 ? t('your_current') : `#${i + 1}`)); openPlan._i = i; },
   openCustom: () => { openPlan = custom; sheet(planDetail(custom, t('builder'))); openPlan._i = -2; },
   closeSheet: () => closeSheet(),
+  ics: () => openPlan && downloadICS(openPlan),
   speak: (a) => { const i = +a.dataset.i; speak(planSpeech(res.top[i], i)); },
   speakOpen: () => openPlan && speak(planSpeech(openPlan, openPlan._i)),
   share: (a) => { const i = +a.dataset.i; share(res.top[i], i); },

@@ -319,3 +319,7 @@ select { border: 1px solid var(--line); border-radius: 10px; background: var(--s
 .seqc .mini-sel { min-height: 30px; padding: .1rem .3rem; font-size: .78rem; font-weight: 500; margin-top: .2rem; }
 .seqedit .seqc { flex-wrap: wrap; }
 .spin.sm { width: 14px; height: 14px; border-width: 2px; display: inline-block; vertical-align: -2px; }
+.acts { list-style: none; padding: 0; margin: .4rem 0 .8rem; display: grid; gap: 2px; }
+.acts li { display: grid; grid-template-columns: 7.5rem 1fr; gap: .6rem; padding: .35rem 0; border-bottom: 1px dashed var(--line); font-size: .92rem; }
+.act-m { font-weight: 650; color: var(--brand); font-size: .85rem; }
+@media (max-width: 480px) { .acts li { grid-template-columns: 1fr; gap: 0; } .act-m:empty { display: none; } }

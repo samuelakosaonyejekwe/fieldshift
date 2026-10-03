@@ -103,4 +103,16 @@ export default {
   // zones
   z_tropical: 'Kitropiki', z_subtropical: 'Nusu-tropiki', z_temperate: 'Wastani', z_cold: 'Baridi kali',
   z_arid: 'kame', z_semiarid: 'nusu kame', z_subhumid_dry: 'unyevu kidogo, kavu', z_subhumid: 'unyevu wa wastani', z_humid: 'unyevu mwingi',
+  act_title: 'Mpango wa kazi — nini cha kufanya na lini',
+  act_sub: 'Kazi za shamba mwezi kwa mwezi kwa mzunguko huu. Ziweke kwenye kalenda ya simu yako kama vikumbusho.',
+  act_sow: 'Andaa shamba na panda {crop}.',
+  act_inoc: 'Changanya mbegu za {crop} na rhizobium kabla ya kupanda — naitrojeni ya bure.',
+  act_fert: 'Weka takriban {n} kg N/ha kwa {crop}: nusu wakati wa kupanda, nusu wiki 4–6 baadaye.',
+  act_irr: 'Panga takriban {mm} za umwagiliaji kwa {crop} katika wiki kavu zaidi.',
+  act_variety: 'Chagua aina ya {crop} inayostahimili ukame na joto; fikiria bima ya mazao.',
+  act_harvest: 'Vuna {crop}; acha masalia juu ya udongo.',
+  act_cover: 'Mara baada ya kuvuna, panda zao la kufunika udongo {crop}.',
+  act_term: 'Maliza zao la kufunika {crop} (kulaza, kukata au kulisha mifugo) wiki 2–3 kabla ya kupanda tena.',
+  act_double: 'Panda zao la pili {crop} mara baada ya kuvuna.',
+  ics: 'Weka kwenye kalenda',
 };

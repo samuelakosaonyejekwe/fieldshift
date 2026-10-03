@@ -32,6 +32,8 @@ export function makeContext(base, inp, scen) {
     ov: inp.overrides || {}, cache: new Map(),
   };
   ctx.soc0 = s.soc * s.bd * 30 * 0.1; // t C/ha in 0-30 cm
+  // erosion already embedded in today's soil (typical regional cropping, average cover factor ~0.35)
+  ctx.eroRef = C.norm.R.reduce((a, r) => a + r, 0) * ctx.K * ctx.LS * 0.35 * ctx.Pf;
   const fT = clamp(2 ** ((C.Tann - 15) / 10), 0.25, 3);
   const gw = mean(C.norm.GW);
   const fW = (0.35 + 0.65 * clamp(C.aridity)) * (gw > 0.8 ? 0.8 : 1);
@@ -397,7 +399,10 @@ export function evaluate(seq, ctx, prefs, opt = {}) {
     yrs[i].sec.a = a;
     if (yrs[i].sec.pl) {
       yrs[i].sec.start = a + (yrs[i].sec.pl.off || 0);
-      yrs[i].sec.end = yrs[i].sec.type === 'cover' ? b : yrs[i].sec.start + yrs[i].sec.pl.n - 1;
+      // winter-hardy covers stand until the next sowing; frost-tender ones die back and leave a mulch
+      const cc = CROP[yrs[i].sec.id];
+      yrs[i].sec.end = yrs[i].sec.type === 'cover' && cc.win ? b : yrs[i].sec.start + yrs[i].sec.pl.n - 1;
+      yrs[i].sec.mulch = yrs[i].sec.type === 'cover' && !cc.win;
     }
   }
   return metrics(seq, yrs, ctx, prefs);
@@ -478,7 +483,7 @@ function metrics(seq, yrs, ctx, prefs) {
     slotIdx += s.pl ? 2 : 1;
     fertTot += fert + f2; demTot += dem + (s.type === 'double' ? CROP[s.id].ndem * s.pl.S : 0);
     irrTot += irr; cuTot += cu; gmTot += inc; rainFit += pl.waterF;
-    perYear.push({ id: c.id, plant: pl.plant, harv: pl.harv, start: y.start - i * 12, end: y.end - i * 12, S: pl.S, Smean: pl.Smean, pFail: pl.pFail, yield: L.yld * pl.S, fert: fert + f2, credit, irr, income: inc, sec: s.pl ? { type: s.type, id: s.id, start: s.start - i * 12, end: s.end - i * 12, S: s.pl.S, frac: s.pl.frac } : { type: s.type, L: s.L } });
+    perYear.push({ id: c.id, plant: pl.plant, harv: pl.harv, start: y.start - i * 12, end: y.end - i * 12, S: pl.S, Smean: pl.Smean, pFail: pl.pFail, yield: L.yld * pl.S, fert: fert + f2, credit, irr, income: inc, sec: s.pl ? { type: s.type, id: s.id, start: s.start - i * 12, end: s.end - i * 12, S: s.pl.S, frac: s.pl.frac, mulch: !!s.mulch } : { type: s.type, L: s.L } });
   });
   const fert = fertTot / N, irr = irrTot / N, cu = cuTot / N, gm = gmTot / N;
 
@@ -498,7 +503,7 @@ function metrics(seq, yrs, ctx, prefs) {
   const socTraj = [ctx.soc0];
   let act = ctx.active0;
   const stable = ctx.soc0 - ctx.active0, conc0 = ctx.soil.soc;
-  const eroRef = 2; // t/ha/yr erosion already embedded in today's equilibrium
+  const eroRef = ctx.eroRef;
   for (let t = 0; t < 20; t++) {
     const inp = inputs[t % N];
     const conc = (conc0 * (act + stable)) / ctx.soc0;
@@ -522,7 +527,7 @@ function metrics(seq, yrs, ctx, prefs) {
       viol += broken ? 0.4 : a.id === 'rice' ? 0.6 : 1;
       if (!broken) notes.push(a.id);
     }
-    else if (a.fam === b.fam && d < a.brk && !(a.per && b.per)) viol += 0.5;
+    else if (a.fam === b.fam && d < a.brk && !(a.per && b.per)) viol += a.fam === 'Poaceae' ? 0.4 : 0.8;
   }
   const pest = clamp(1 - viol / Math.max(1, N));
 
@@ -581,7 +586,8 @@ export function weights(prio) {
 function finalize(list, w, refGM) {
   for (const r of list) {
     r.scores.profit = 100 * clamp(r.gm / Math.max(1, refGM));
-    r.total = Object.keys(w).reduce((s, k) => s + w[k] * r.scores[k], 0) * (0.6 + 0.4 * clamp(r.feas / 0.6));
+    // agronomic red flags (same crop / same family too soon) cut the total, whatever the weights
+    r.total = Object.keys(w).reduce((s, k) => s + w[k] * r.scores[k], 0) * (0.6 + 0.4 * clamp(r.feas / 0.6)) * (1 - 0.07 * Math.min(3, r.viol / Math.max(1, r.N) * 2));
   }
 }
 
