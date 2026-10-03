@@ -1,7 +1,7 @@
 // FieldShift — interface controller
 import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js';
 import { t, setLang, lang, LANGS, cropName, monthName, guessLang } from './i18n.js';
-import { DEMOS, loadDemo, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, geocode, reverseGeocode } from './data.js';
+import { DEMOS, loadDemo, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js';
 import * as CH from './charts.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -21,7 +21,7 @@ const DEF = {
   builder: { seq: [], sec: [] },
 };
 let S = load();
-let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null;
+let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
 
 function load() {
   let s = null;
@@ -223,7 +223,8 @@ async function openFarm(f, quiet = false) {
     S.practice = { ...structuredClone(DEF.practice), ...(f.demo ? DEMO_PRACTICE[f.demo] || {} : {}) };
     S.builder = { seq: [], sec: [] };
   }
-  shift = null; ndvi = null; custom = null;
+  shift = null; ndvi = null; custom = null; recent = null;
+  loadRecent();
   S.soilPending = !!soilP;
   save(); updateChip();
   if (!S.farm.name) reverseGeocode(f.lat, f.lon, lang()).then((n) => { if (n && S.farm) { S.farm.name = n; save(); updateChip(); if (S.tab === 'farm') renderFarm(); } });
@@ -415,6 +416,7 @@ function renderClimate() {
   const dTdec = U.dTemp(ins.tTrend);
   v.innerHTML = `
   <div class="head"><h1>${esc(t('clim_title'))}</h1><p class="muted">${esc(t('clim_sub', { y0, y1 }))} · ${esc(zoneLabel())}</p></div>
+  <div class="now-slot">${nowHTML()}</div>
   <div class="kpis">
     ${tile(t('k_temp'), `${U.n(U.temp(ins.Tann), 1)}${U.tempL}`, '')}
     ${tile(t('k_rain'), `${U.n(U.mm(ins.Pann))} ${U.mmL}`, `CV ${Math.round(ins.acv * 100)}%`)}
@@ -449,6 +451,33 @@ function ndviHTML() {
   const avg = mo.map((a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : -1));
   const pk = avg.indexOf(Math.max(...avg));
   return CH.ndviChart(ndvi) + `<p class="note">🌿 ${esc(t('ndvi_peak', { m: monthName(pk, 'long') }))}</p>`;
+}
+
+// ---------------- Season so far ----------------
+function loadRecent() {
+  if (!S.farm || !navigator.onLine) return;
+  const { lat, lon } = S.farm;
+  fetchRecent(lat, lon).then((d) => {
+    if (!S.farm || S.farm.lat !== lat || S.farm.lon !== lon || !ins) return;
+    recent = recentAnomaly(d, ins.C.norm);
+    $$('.now-slot').forEach((el) => (el.innerHTML = nowHTML()));
+  }).catch(() => {});
+}
+function nowHTML() {
+  const a = recent;
+  if (!a || !Number.isFinite(a.pct)) return '';
+  const dry = a.pct < 75 || (a.gw < a.gwN - 0.08), wet = a.pct > 130 || (a.gw > a.gwN + 0.1);
+  const hot = a.dT > 1;
+  const tone = dry ? 'warn' : wet ? 'info' : 'ok';
+  const fmtD = (s2) => `${s2.slice(6, 8)} ${monthName(+s2.slice(4, 6) - 1)}`;
+  return `<section class="now ${tone}"><div class="now-h"><b>🛰️ ${esc(t('now_title'))}</b><small>${esc(fmtD(a.from))} – ${esc(fmtD(a.to))}</small></div>
+    <div class="now-k">
+      <div><span>🌧️ ${esc(t('now_rain'))}</span><b>${U.n(U.mm(a.P))} ${U.mmL}</b><small>${esc(t('of_normal', { pct: Math.round(a.pct) }))}</small></div>
+      <div><span>🌡️ ${esc(t('now_temp'))}</span><b>${a.dT >= 0 ? '+' : '−'}${U.n(Math.abs(U.dTemp(a.dT)), 1)}${U.tempL}</b><small>&nbsp;</small></div>
+      ${Number.isFinite(a.gw) ? `<div><span>💧 ${esc(t('now_soil'))}</span><b>${Math.round(a.gw * 100)}%</b><small>${esc(t('normal_is', { v: Math.round(a.gwN * 100) + '%' }))}</small></div>` : ''}
+    </div>
+    <p>${esc(t(dry ? 'now_dry' : wet ? 'now_wet' : 'now_ok'))}${hot ? ' ' + esc(t('now_hot')) : ''}</p>
+    <p class="muted small">${esc(t('now_sub'))}</p></section>`;
 }
 
 // ---------------- GOALS TAB ----------------
@@ -576,6 +605,7 @@ function renderPlans() {
       <label>${esc(t('dP'))} <output>${S.scen.dP > 0 ? '+' : ''}${S.scen.dP}%</output><input type="range" min="-40" max="30" step="5" value="${S.scen.dP}" data-scen="dP"></label></div>` : ''}
     ${(sc.dT || sc.dP) ? `<p class="note small">🌡️ ${esc(t('sc_note', { dT: `${sc.dT > 0 ? '+' : ''}${(sc.dT || 0).toFixed(1)}`, dP: `${sc.dP > 0 ? '+' : ''}${Math.round((sc.dP || 0) * 100)}` }))}</p>` : ''}
   </div>
+  <div class="now-slot">${nowHTML()}</div>
   ${b ? `<article class="card baseline">
     <div class="pc-top"><div class="pc-w">${CH.wheel(b, 76, false)}</div><div class="pc-t"><span class="eyebrow">${esc(t('your_current'))}</span><div class="seq">${planTitle(b)}</div></div>${CH.donut(b.total, 56, 'var(--s2)')}</div>
     ${miniScores(b)}${metricsRow(b, null, true)}
@@ -745,7 +775,7 @@ function renderLab() {
       <small>${esc(t('then'))}</small><select data-b="sec" data-i="${i}">${secOpts(B.sec[i] || 'auto')}</select>
       ${B.seq.length > 1 ? `<button class="link" data-act="bDel" data-i="${i}">${esc(t('remove'))}</button>` : ''}</div>`).join('')}
       ${B.seq.length < 5 ? `<button class="bslot add" data-act="bAdd">+ ${esc(t('add_year'))}</button>` : ''}</div>
-    <div id="customOut">${custom ? customHTML() : `<button class="btn primary" data-act="bEval">${esc(t('evaluate'))}</button>`}</div>
+    <div id="customOut">${custom ? customHTML() : `<div class="skel"></div>`}</div>
   </article>
   <article class="card">
     <h2>📊 ${esc(t('suit_title'))}</h2>
@@ -761,6 +791,7 @@ function renderLab() {
             <label class="numf"><span>${esc(t('gm_local'))}</span><span class="numw"><input type="number" step="10" value="${S.overrides[c.id]?.gm ?? c.gm}" data-ov="gm" data-id="${c.id}"></span></label></div>` : ''}
         </div></details>`; }).join('')}</div>
   </article>`;
+  if (!custom) evalCustom();
   v.onchange = (e) => {
     const el = e.target;
     if (el.dataset.b) { S.builder[el.dataset.b][+el.dataset.i] = el.value; custom = null; save(); evalCustom(); }

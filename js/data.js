@@ -255,6 +255,31 @@ function climateZone(C) {
   return { moist, thermal, label: `${thermal}_${moist}`, tAnn: t };
 }
 
+// ---------- Season so far: NASA POWER near-real-time daily data ----------
+export async function fetchRecent(lat, lon) {
+  const k = 'recent:' + key(lat, lon);
+  const c = cacheGet(k);
+  if (c && Date.now() - c.t < 12 * 3600e3) return c.v;
+  const d = (x) => x.toISOString().slice(0, 10).replace(/-/g, '');
+  const end = new Date(Date.now() - 2 * 864e5), start = new Date(end.getTime() - 92 * 864e5);
+  const r = await getJSON(`${POWER}/daily/point?parameters=PRECTOTCORR,T2M,GWETROOT&community=AG&longitude=${lon}&latitude=${lat}&start=${d(start)}&end=${d(end)}&format=JSON`, 30000);
+  const P = r.properties.parameter;
+  const days = Object.keys(P.T2M).filter((k2) => ok(P.T2M[k2]) && ok(P.PRECTOTCORR[k2])).sort().slice(-90);
+  const v = days.map((k2) => ({ d: k2, m: +k2.slice(4, 6) - 1, P: P.PRECTOTCORR[k2], T: P.T2M[k2], GW: ok(P.GWETROOT[k2]) ? P.GWETROOT[k2] : NaN }));
+  if (v.length) cacheSet(k, { t: Date.now(), v });
+  return v;
+}
+// Compare recent days with the long-term normals for the same calendar days
+export function recentAnomaly(days, norm) {
+  if (!days?.length) return null;
+  let P = 0, Pn = 0, dT = 0;
+  for (const x of days) { P += x.P; Pn += norm.P[x.m] / DAYS[x.m]; dT += x.T - norm.T[x.m]; }
+  const lastGW = days.filter((x) => Number.isFinite(x.GW)).slice(-7);
+  const gw = lastGW.length ? mean(lastGW.map((x) => x.GW)) : NaN;
+  const gwN = norm.GW[days[days.length - 1].m];
+  return { P, Pn, pct: Pn > 1 ? (P / Pn) * 100 : NaN, dT: dT / days.length, gw, gwN, from: days[0].d, to: days[days.length - 1].d, n: days.length };
+}
+
 // ---------- MODIS NDVI (satellite greenness) ----------
 export async function fetchNDVI(lat, lon, monthsBack = 24) {
   const k = 'ndvi:' + key(lat, lon);
