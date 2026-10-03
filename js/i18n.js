@@ -383,7 +383,7 @@ let code = 'en';
 export async function setLang(c) {
   code = LANGS.some(([k]) => k === c) ? c : 'en';
   if (code === 'en') { dict = EN; return; }
-  try { const m = await import(`./lang/${code}.js?v=1.13.0`); dict = { ...EN, ...m.default }; } catch { dict = EN; code = 'en'; }
+  try { const m = await import(`./lang/${code}.js?v=1.13.1`); dict = { ...EN, ...m.default }; } catch { dict = EN; code = 'en'; }
 }
 export const lang = () => code;
 export function t(k, p) {

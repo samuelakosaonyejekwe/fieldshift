@@ -1,7 +1,7 @@
 // FieldShift rotation engine.
 // Pure functions: climate (NASA POWER) + soil + farmer inputs -> ranked rotations.
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS } from './crops.js?v=1.13.0';
-import { deriveClimate, climateInsights, textureClass, texGroup, awcOf, kFactor, DAYS, effRain, DEFAULT_SOIL } from './data.js?v=1.13.0';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS } from './crops.js?v=1.13.1';
+import { deriveClimate, climateInsights, textureClass, texGroup, awcOf, kFactor, DAYS, effRain, DEFAULT_SOIL } from './data.js?v=1.13.1';
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const mean = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
@@ -16,6 +16,21 @@ const GAP_GM_SCALE = 1500, POOL_GM_SCALE = 900;
 const CRED = (c) => (c.cover ? 0.6 : c.per ? 0.5 : 0.3);
 
 // ---------------- Context ----------------
+// Crop placements (and the gap options built from them) depend only on climate, soil, water and the farmer's own
+// yields — not on priorities, prices or tillage — so they are shared between runs for the same inputs.
+// Moving a priority slider therefore re-ranks without re-placing every crop.
+function placementCache(base, C, inp) {
+  const pr = inp.practice || {};
+  const k = JSON.stringify([inp.soil, pr.irrigation, pr.drainage, pr.salinity, C.dT || 0, C.dP || 0, C.from || 0, inp.overrides || {}]);
+  base._pc = base._pc || new Map();
+  let m = base._pc.get(k);
+  if (!m) {
+    m = new Map();
+    base._pc.set(k, m);
+    if (base._pc.size > 12) base._pc.delete(base._pc.keys().next().value); // keep memory bounded
+  }
+  return m;
+}
 export function makeContext(base, inp, scen) {
   const C = deriveClimate(base, scen || scenarioOf(base, inp.scen));
   const s = { ...inp.soil };
@@ -31,7 +46,7 @@ export function makeContext(base, inp, scen) {
     drain: DRAIN[pr.drainage] ?? 0.6, irr: pr.irrigation || 'none', till: pr.tillage || 'conventional',
     retain: RETAIN[pr.residue] ?? 1, manure: +pr.manure || 0, salinity: SAL[pr.salinity] ?? 0,
     prices: { n: inp.prices?.n ?? 1.1, irr: inp.prices?.irr ?? 0.15 },
-    ov: inp.overrides || {}, cache: new Map(),
+    ov: inp.overrides || {}, cache: placementCache(base, C, inp), gapMemo: new Map(),
   };
   ctx.soc0 = Math.max(1, (s.soc || DEFAULT_SOIL.soc) * (s.bd || DEFAULT_SOIL.bd) * 30 * 0.1); // t C/ha in 0-30 cm
   ctx.soilF = {};
@@ -232,6 +247,7 @@ function scoreSpan(c, ctx, s, months, frac = 1, killed = false, gap = false) {
 // each result is labelled with its harvest year.
 function history(c, ctx, pl) {
   const { S: Y, years } = ctx.C;
+  const Pe = ctx.C._Pe || (ctx.C._Pe = Y.P.map((row) => row.map(effRain)));
   const idx = new Map(years.map((yr, i) => [yr, i]));
   const out = [];
   for (let y = 0; y < years.length; y++) {
@@ -243,7 +259,7 @@ function history(c, ctx, pl) {
       const T = Y.T[yy][x.m], f = (i + 0.5) / pl.n;
       if (!x.d) { na++; actT.push(T); }
       demand += (x.d ? 0.3 : kcAt(c, f)) * Y.ET0[yy][x.m] + (x.d ? 0 : c.perc);
-      supply += effRain(Y.P[yy][x.m]);
+      supply += Pe[yy][x.m];
       const thr = x.d ? c.fr : activeThr(c);
       if (i > 0 && i < pl.n - 1 && Y.Tn[yy][x.m] < thr && !(c.wk && x.d)) frost = true;
       if (!x.d && atAnthesis(f) && Y.Tx[yy][x.m] > heatThr(c)) heat = true;
@@ -375,8 +391,17 @@ function gapOptions(ctx, a, L) {
   return out;
 }
 
+// every secondary slot has the same shape, whatever was chosen (keeps the JavaScript engine on its fast path)
+const mkSec = (type, id, pl, L, u) => ({ type, id, pl, L, u, a: 0, start: 0, end: 0, mulch: false });
+// the choice for a given gap is the same every time it recurs in a run, so it is worked out once
 function chooseGap(ctx, prefs, a, L, prev, next, forced) {
-  if (L < 2 || forced === 'fallow') return { type: 'fallow', L };
+  if (L < 2 || forced === 'fallow') return mkSec('fallow', null, null, L, 0);
+  const mk = `${((a % 12) + 12) % 12}|${L}|${prev}|${next}|${forced || ''}`;
+  let d = ctx.gapMemo.get(mk);
+  if (!d) { d = decideGap(ctx, prefs, a, L, prev, next, forced); ctx.gapMemo.set(mk, d); }
+  return mkSec(d.type, d.id ?? null, d.pl ?? null, d.L, d.u ?? 0); // callers fill in a, start, end, mulch
+}
+function decideGap(ctx, prefs, a, L, prev, next, forced) {
   if (forced && forced !== 'auto' && CROP[forced]) {
     // farmer-specified second crop: place it directly, no automatic rules
     const c = CROP[forced], s0 = ((a % 12) + 12) % 12;
@@ -471,7 +496,7 @@ export function evaluate(seq, ctx, prefs, opt = {}) {
     const a = yrs[i].end + 1, b = yrs[j].start + (j === 0 ? N * 12 : 0) - 1;
     const L = b - a + 1;
     const forced = opt.sec?.[i];
-    yrs[i].sec = (yrs[i].c.per || yrs[j].c.per) ? { type: 'none', L: 0 } : chooseGap(ctx, prefs, a, L, seq[i], seq[j], forced);
+    yrs[i].sec = (yrs[i].c.per || yrs[j].c.per) ? mkSec('none', null, null, 0, 0) : chooseGap(ctx, prefs, a, L, seq[i], seq[j], forced);
     yrs[i].sec.a = a;
     if (yrs[i].sec.pl) {
       yrs[i].sec.start = a + (yrs[i].sec.pl.off || 0);
@@ -481,14 +506,17 @@ export function evaluate(seq, ctx, prefs, opt = {}) {
       yrs[i].sec.mulch = yrs[i].sec.type === 'cover' && !cc.win;
     }
   }
-  return metrics(seq, yrs, ctx, prefs);
+  return metrics(seq, yrs, ctx, prefs, opt.detail !== false);
 }
 
-function metrics(seq, yrs, ctx, prefs) {
+// detail=false is the lean path used while searching: identical arithmetic, but no per-month occupant objects,
+// per-year records or Time Machine year objects (only the results that are shown are rebuilt with detail=true).
+function metrics(seq, yrs, ctx, prefs, detail = true) {
   const N = seq.length, T = N * 12, C = ctx.C;
   // ---- monthly cover timeline (for erosion, leaching, living roots) ----
-  const canopy = new Array(T).fill(0), living = new Array(T).fill(0), resid = new Array(T).fill(0);
-  const occ = new Array(T).fill(null);
+  const B = ctx._buf || (ctx._buf = { canopy: new Float64Array(72), living: new Uint8Array(72), resid: new Float64Array(72), occId: new Array(72), occCover: new Uint8Array(72), occDorm: new Uint8Array(72) });
+  const canopy = B.canopy.fill(0, 0, T), living = B.living.fill(0, 0, T), resid = B.resid.fill(0, 0, T);
+  const occId = B.occId.fill(null, 0, T), occCover = B.occCover.fill(0, 0, T), occDorm = B.occDorm.fill(0, 0, T), occV = detail ? new Array(T).fill(null) : null;
   const paint = (start, end, c, pl, cover = false) => {
     const n = end - start + 1;
     for (let k = 0; k < n; k++) {
@@ -500,7 +528,8 @@ function metrics(seq, yrs, ctx, prefs) {
       if (cover && pl?.killed && k >= pl.months.length - 1) { resid[t] = Math.max(resid[t], 0.6); cv = 0; }
       canopy[t] = Math.max(canopy[t], cv);
       if (cv > 0) living[t] = 1;
-      occ[t] = { id: c.id, v: c.v || null, cover, dorm: !!dorm };
+      occId[t] = c.id; occCover[t] = cover ? 1 : 0; occDorm[t] = dorm ? 1 : 0;
+      if (occV) occV[t] = c.v || null;
     }
   };
   yrs.forEach((y) => {
@@ -515,7 +544,7 @@ function metrics(seq, yrs, ctx, prefs) {
     const rc = TILL_RES[ctx.till] * clamp((last.res * lastS * (y.sec.type === 'cover' ? 1 : ctx.retain)) / 4);
     for (let k = y.end + 1; k <= y.end + 14; k++) {
       const t = ((k % T) + T) % T;
-      if (occ[t] && !(occ[t].cover && resid[t])) { if (occ[t].id !== (y.sec.id || '')) break; else continue; }
+      if (occId[t] !== null && !(occCover[t] && resid[t])) { if (occId[t] !== (y.sec.id || '')) break; else continue; }
       resid[t] = Math.max(resid[t], rc);
     }
   }
@@ -529,11 +558,13 @@ function metrics(seq, yrs, ctx, prefs) {
   }
   const erosion = ero / N; // t/ha/yr
   const leach = sur ? surBare / sur : 0;
-  const livingFrac = living.reduce((a, b) => a + b, 0) / T;
+  let liv = 0; for (let t = 0; t < T; t++) liv += living[t];
+  const livingFrac = liv / T;
 
   // ---- nitrogen, water, money per year ----
   let fertTot = 0, demTot = 0, irrTot = 0, cuTot = 0, gmTot = 0, rainFit = 0;
   const perYear = [];
+  const fMainA = new Float64Array(N), fSecA = new Float64Array(N);
   const nslots = [];
   yrs.forEach((y) => { nslots.push({ c: y.c, S: y.pl.S }); if (y.sec.pl) nslots.push({ c: CROP[y.sec.id], S: y.sec.pl.S * (y.sec.pl.frac || 1), sec: true }); });
   const nsl = nslots.length;
@@ -562,7 +593,8 @@ function metrics(seq, yrs, ctx, prefs) {
     slotIdx += s.pl ? 2 : 1;
     fertTot += fert + f2; demTot += dem + (s.type === 'double' ? CROP[s.id].ndem * s.pl.S : 0);
     irrTot += irr; cuTot += cu; gmTot += inc; rainFit += pl.waterF;
-    perYear.push({ id: c.id, v: pl.v || null, plant: pl.plant, harv: pl.harv, start: y.start - i * 12, end: y.end - i * 12, S: pl.S, Smean: pl.Smean, pFail: pl.pFail, yield: L.yld * pl.S, fert: fert + f2, fMain: fert, fSec: f2, credit, creditFrom, irr, income: inc, sec: s.pl ? { type: s.type, id: s.id, v: s.pl.v || null, start: s.start - i * 12, end: s.end - i * 12, S: s.pl.S, frac: s.pl.frac, mulch: !!s.mulch } : { type: s.type, L: s.L } });
+    fMainA[i] = fert; fSecA[i] = f2;
+    if (detail) perYear.push({ id: c.id, v: pl.v || null, plant: pl.plant, harv: pl.harv, start: y.start - i * 12, end: y.end - i * 12, S: pl.S, Smean: pl.Smean, pFail: pl.pFail, yield: L.yld * pl.S, fert: fert + f2, fMain: fert, fSec: f2, credit, creditFrom, irr, income: inc, sec: s.pl ? { type: s.type, id: s.id, v: s.pl.v || null, start: s.start - i * 12, end: s.end - i * 12, S: s.pl.S, frac: s.pl.frac, mulch: !!s.mulch } : { type: s.type, L: s.L } });
   });
   const fert = fertTot / N, irr = irrTot / N, cu = cuTot / N;
   let gm = gmTot / N; // margin at average weather; replaced below by the mean over real years
@@ -616,15 +648,16 @@ function metrics(seq, yrs, ctx, prefs) {
   const pFail = mean(yrs.map((y) => y.pl.pFail));
   const stress = ctx.stress ? mean(seq.map((x) => { const p = placeMain(CROP[x], ctx.stress)[0]; const b = placeMain(CROP[x], ctx)[0]; return p && b ? clamp(p.S / Math.max(0.05, b.S), 0, 1.1) : 0; })) : 0.8;
   // historical replay (Time Machine summary)
-  const H = timeMachine(seq, yrs, ctx, perYear);
+  const H = detail ? timeMachine(seq, yrs, ctx, fMainA, fSecA) : null;
+  const incomes = detail ? H.map((h) => h.income) : tmIncomes(seq, yrs, ctx, fMainA, fSecA);
   // Expected margin = average over the real years of the NASA record (the same outcomes the Time Machine
   // replays), position by position, so averages and the replay share one source of truth.
-  if (H.length >= 3) {
-    for (let i = 0; i < N; i++) perYear[i].income = mean(H.map((h) => h.parts[i]));
-    gm = mean(H.map((h) => h.income)); // identical to the Time Machine's average by construction
+  if (incomes.length >= 3) {
+    if (detail) for (let i = 0; i < N; i++) perYear[i].income = mean(H.map((h) => h.parts[i]));
+    gm = mean(incomes); // identical to the Time Machine's average by construction
   }
-  const incs = H.map((h) => h.income).sort((a, b) => a - b);
-  const p10 = H.length >= 3 ? incs[Math.floor(incs.length * 0.1)] : gm;
+  const incs = incomes.slice().sort((a, b) => a - b);
+  const p10 = incomes.length >= 3 ? incs[Math.floor(incs.length * 0.1)] : gm;
   const stab = gm > 0 ? clamp(p10 / gm) : 0;
 
   // ---- scores 0..100 ----
@@ -637,10 +670,11 @@ function metrics(seq, yrs, ctx, prefs) {
   const secOps = yrs.filter((y) => y.sec.pl).length / N;
   const simpleScore = 100 * clamp(1 - 0.22 * (avgLab - 1) - 0.07 * Math.max(0, new Set(seq).size - 2) - 0.12 * secOps - (irr > 0 ? 0.1 : 0));
   const feas = mean(yrs.map((y) => y.pl.S));
+  const occ = detail ? occId.slice(0, T).map((id, t) => (id === null ? null : { id, v: occV[t], cover: !!occCover[t], dorm: !!occDorm[t] })) : null;
   return {
-    seq, N, years: perYear, occ, canopy, resid,
+    seq, N, years: detail ? perYear : null, occ, canopy: detail ? Array.from(canopy.subarray(0, T)) : null, resid: detail ? Array.from(resid.subarray(0, T)) : null,
     erosion, leach, livingFrac, fert, irr, cu, gm, p10, socTraj, socPct, socRate, co2e, pest, viol, repeats: notes,
-    pFail, stress, fams: fams.size, feas, hist: H,
+    pFail, stress, fams: fams.size, feas, hist: H, detail, secs: yrs.map((y) => [y.sec.type, y.sec.id || null]),
     scores: { soil: soilScore, water: waterScore, profit: 0, resil: resilScore, simple: simpleScore },
   };
 }
@@ -650,21 +684,21 @@ const histByYear = (pl) => pl._hy || (pl._hy = new Map(pl.hist.map((h) => [h.y, 
 // Whole-farm replay over the real NASA years. A rotating farm has every stage of an N-year rotation on its own
 // share of the land each year, so a year's result is the mean over all stages. Only years in which every
 // stage has a record are used. Same nitrogen and water accounting as the per-year metrics.
-function timeMachine(seq, yrs, ctx, perYear) {
+function timeMachine(seq, yrs, ctx, fMainA, fSecA) {
   const N = seq.length, years = ctx.C.years;
   const out = [];
   for (const yr of years) {
     const parts = [];
     for (let i = 0; i < N; i++) {
-      const y = yrs[i], py = perYear[i];
+      const y = yrs[i];
       const h = histByYear(y.pl).get(yr);
       if (!h) break;
       const L = local(ctx, y.c);
       const f = h.S / Math.max(0.05, y.pl.S); // this year's crop relative to the average year
-      let inc = L.gm * h.S - py.fMain * f * ctx.prices.n - h.irr * ctx.prices.irr;
+      let inc = L.gm * h.S - fMainA[i] * f * ctx.prices.n - h.irr * ctx.prices.irr;
       if (y.sec.type === 'double') {
         const c2 = y.sec.pl.cv || CROP[y.sec.id], f2 = 0.6 + 0.4 * Math.min(1.5, f); // second crop shares part of the year's weather
-        inc += local(ctx, c2).gm * y.sec.pl.S * f2 - py.fSec * f2 * ctx.prices.n - y.sec.pl.irr * ctx.prices.irr;
+        inc += local(ctx, c2).gm * y.sec.pl.S * f2 - fSecA[i] * f2 * ctx.prices.n - y.sec.pl.irr * ctx.prices.irr;
       } else if (y.sec.type === 'cover') inc += CROP[y.sec.id].gm;
       parts.push({ i, id: y.c.id, v: y.pl.v || null, S: h.S, inc, frost: h.frost, heat: h.heat, dry: h.dry, fail: h.S / y.pl.soilF < FAIL_FRAC });
     }
@@ -675,6 +709,37 @@ function timeMachine(seq, yrs, ctx, perYear) {
       frost: parts.some((x) => x.frost), heat: parts.some((x) => x.heat), dry: parts.some((x) => x.dry),
       fails: parts.filter((x) => x.fail).length, fail: parts.some((x) => x.fail),
     });
+  }
+  return out;
+}
+
+// a placement's yearly crop score and irrigation aligned to the record's years (NaN = no record), built once
+function histArrays(pl, years) {
+  if (pl._ha && pl._ha.n === years.length) return pl._ha;
+  const by = histByYear(pl), Sa = new Float64Array(years.length).fill(NaN), Ia = new Float64Array(years.length);
+  years.forEach((yr, k) => { const h = by.get(yr); if (h) { Sa[k] = h.S; Ia[k] = h.irr; } });
+  return (pl._ha = { n: years.length, S: Sa, irr: Ia });
+}
+// lean replay used while searching: the same per-year incomes as timeMachine(), summed in the same order
+function tmIncomes(seq, yrs, ctx, fMainA, fSecA) {
+  const N = seq.length, years = ctx.C.years, Y = years.length, pn = ctx.prices.n, pi = ctx.prices.irr;
+  const arr = yrs.map((y) => histArrays(y.pl, years));
+  const gmMain = yrs.map((y) => local(ctx, y.c).gm), pS = yrs.map((y) => Math.max(0.05, y.pl.S));
+  const secK = yrs.map((y) => (y.sec.type === 'double' ? 2 : y.sec.type === 'cover' ? 1 : 0));
+  const secGm = yrs.map((y) => (y.sec.type === 'double' ? local(ctx, y.sec.pl.cv || CROP[y.sec.id]).gm : y.sec.type === 'cover' ? CROP[y.sec.id].gm : 0));
+  const out = [];
+  for (let k = 0; k < Y; k++) {
+    let sum = 0, ok = true;
+    for (let i = 0; i < N; i++) {
+      const S = arr[i].S[k];
+      if (S !== S) { ok = false; break; } // NaN: this stage has no record this year
+      const f = S / pS[i];
+      let inc = gmMain[i] * S - fMainA[i] * f * pn - arr[i].irr[k] * pi;
+      if (secK[i] === 2) { const sp = yrs[i].sec.pl, f2 = 0.6 + 0.4 * Math.min(1.5, f); inc += secGm[i] * sp.S * f2 - fSecA[i] * f2 * pn - sp.irr * pi; }
+      else if (secK[i] === 1) inc += secGm[i];
+      sum += inc;
+    }
+    if (ok) out.push(sum / N);
   }
   return out;
 }
@@ -754,10 +819,10 @@ export function recommend(base, inp) {
   for (const N of lens) {
     const group = cands.filter((c) => c.N === N).sort((a, b) => b.q - a.q).slice(0, Math.ceil(budget / lens.length) + (N === 1 ? 0 : 40));
     for (const { seq } of group) {
-      const r2 = evaluate(seq, ctx, prefs);
+      const r2 = evaluate(seq, ctx, prefs, { detail: false }); // lean while searching
       evaluated++;
       // a one-crop system is only a rotation if a different family follows it in the same year
-      if (r2 && N === 1 && !(r2.years[0].sec.type === 'double' && CROP[r2.years[0].sec.id].fam !== CROP[seq[0]].fam)) continue;
+      if (r2 && N === 1 && !(r2.secs[0][0] === 'double' && CROP[r2.secs[0][1]].fam !== CROP[seq[0]].fam)) continue;
       if (r2) results.push(r2);
     }
   }
@@ -780,6 +845,8 @@ export function recommend(base, inp) {
     seen.add(key); top.push(r);
     if (top.length >= 6) break;
   }
+  // rebuild the shown plans with full detail (same arithmetic as the lean search, plus calendar/replay data)
+  for (let i = 0; i < top.length; i++) { const d = evaluate(top[i].seq, ctx, prefs); finalize([d], prefs.w, refGM); top[i] = d; }
   top.forEach((r) => { r.reasons = explain(r, baseline, ctx, ins); });
   return { ctx: null, droppedInclude, top, baseline, suit: suit.map(slimSuit), evaluated, ms: Math.round(performance.now() - t0), ins: slimIns(ins), scenario: scenarioOf(base, sc), climate: slimClimate(ctx.C), refGM };
 }

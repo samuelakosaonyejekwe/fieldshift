@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.13.0';
-import { t, setLang, lang, LANGS, RTL, cropName, cropLabel, monthName, guessLang } from './i18n.js?v=1.13.0';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.13.0';
-import * as CH from './charts.js?v=1.13.0';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.13.1';
+import { t, setLang, lang, LANGS, RTL, cropName, cropLabel, monthName, guessLang } from './i18n.js?v=1.13.1';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.13.1';
+import * as CH from './charts.js?v=1.13.1';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.13.0';
+export const APP_VERSION = '1.13.1';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let shiftTok = 0;
@@ -139,7 +139,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js?v=1.13.0', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.13.1', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -156,7 +156,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js?v=1.13.0');
+  engineMod = engineMod || await import('./engine.js?v=1.13.1');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
