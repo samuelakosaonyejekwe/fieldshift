@@ -20,27 +20,76 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
+export const APP_VERSION = '1.6.0';
+const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
 
 function load() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem('fs-state')); } catch { /* private mode */ }
-  const merged = s && s.v === DEF.v ? deepMerge(structuredClone(DEF), s) : structuredClone(DEF);
+  const merged = s && s.v === DEF.v ? deepMerge(clone(DEF), sanitize(s)) : clone(DEF);
   // shared link state wins
   const m = location.hash.match(/s=([^&]+)/);
   if (m) {
     try {
-      const sh = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
-      Object.assign(merged, deepMerge(merged, sh));
+      const sh = sanitize(JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))));
+      deepMerge(merged, sh);
       merged.tab = 'plans';
     } catch { /* bad link */ }
     history.replaceState(null, '', location.pathname);
   }
   return merged;
 }
+// Untrusted state (shared links, old storage) is rebuilt field by field: numbers clamped,
+// enums whitelisted, crop ids checked — nothing else gets through.
+function sanitize(x) {
+  if (!x || typeof x !== 'object') return {};
+  const o = {};
+  const num = (v, a, b, d) => { const n = +v; return Number.isFinite(n) ? clamp(n, a, b) : d; };
+  const one = (v, list, d) => (list.includes(v) ? v : d);
+  const crops = (a, main = true) => (Array.isArray(a) ? a.filter((id) => typeof id === 'string' && CROP[id] && (!main || !CROP[id].cover)).slice(0, 5) : []);
+  if (x.farm && typeof x.farm === 'object') {
+    const lat = +x.farm.lat, lon = +x.farm.lon;
+    if (Number.isFinite(lat) && Number.isFinite(lon)) o.farm = { name: typeof x.farm.name === 'string' ? x.farm.name.slice(0, 120) : null, lat: clamp(lat, -90, 90), lon: clamp(lon, -180, 180), demo: DEMOS.some((d) => d[0] === x.farm.demo) ? x.farm.demo : null };
+  }
+  if (x.soil && typeof x.soil === 'object') {
+    const R = { clay: [0, 100], sand: [0, 100], silt: [0, 100], soc: [1, 150], ph: [3.5, 10], bd: [0.8, 1.9], cec: [0, 200], n: [0, 50] };
+    o.soil = {}; for (const k in R) o.soil[k] = num(x.soil[k], R[k][0], R[k][1], DEFAULT_SOIL[k]);
+  }
+  if (x.soilAuto && typeof x.soilAuto === 'object') o.soilAuto = sanitize({ soil: x.soilAuto }).soil;
+  o.soilEdited = !!x.soilEdited;
+  if (x.practice && typeof x.practice === 'object') {
+    const P = x.practice;
+    o.practice = {
+      irrigation: one(P.irrigation, ['none', 'supplemental', 'full'], 'none'), tillage: one(P.tillage, ['conventional', 'reduced', 'notill'], 'conventional'),
+      residue: one(P.residue, ['retained', 'partial', 'removed'], 'retained'), drainage: one(P.drainage, ['good', 'moderate', 'poor'], 'moderate'),
+      salinity: one(P.salinity, ['none', 'moderate', 'high'], 'none'), slope: num(P.slope, 0, 30, 2), manure: num(P.manure, 0, 20, 0),
+      conservation: !!P.conservation, currentCover: !!P.currentCover, current: crops(P.current),
+      currentSec: Array.isArray(P.currentSec) ? P.currentSec.slice(0, 5).map((id) => (typeof id === 'string' && CROP[id] ? id : undefined)) : [],
+    };
+  }
+  if (x.prio && typeof x.prio === 'object') { o.prio = {}; for (const k of ['soil', 'water', 'profit', 'resil', 'simple']) o.prio[k] = Math.round(num(x.prio[k], 0, 5, 3)); }
+  if (x.cons && typeof x.cons === 'object') {
+    const c = x.cons;
+    o.cons = { len: c.len === 'auto' ? 'auto' : Math.round(num(c.len, 2, 5, 3)), covers: c.covers !== false, double: c.double !== false, hort: !!c.hort, forage: !!c.forage, include: crops(c.include).slice(0, 3), exclude: crops(c.exclude, true).slice(0, 40) };
+  }
+  if (x.scen && typeof x.scen === 'object') o.scen = { mode: one(x.scen.mode, ['base', 'recent', 'y2040', 'y2050', 'hotdry', 'custom'], 'base'), dT: num(x.scen.dT, -1, 5, 1.5), dP: num(x.scen.dP, -40, 30, -10) };
+  if (x.prices && typeof x.prices === 'object') o.prices = { n: num(x.prices.n, 0, 20, 1.1), irr: num(x.prices.irr, 0, 5, 0.15) };
+  if (x.overrides && typeof x.overrides === 'object') { o.overrides = {}; for (const id in x.overrides) if (CROP[id]) o.overrides[id] = { ...(x.overrides[id]?.yld != null ? { yld: num(x.overrides[id].yld, 0, 200, CROP[id].yld) } : {}), ...(x.overrides[id]?.gm != null ? { gm: num(x.overrides[id].gm, -5000, 50000, CROP[id].gm) } : {}) }; }
+  if (Array.isArray(x.saved)) o.saved = x.saved.map((f) => sanitize({ farm: f }).farm).filter(Boolean).slice(0, 12);
+  if (x.builder && typeof x.builder === 'object') { const sq = crops(x.builder.seq); o.builder = { seq: sq, sec: sq.map((_, i) => (typeof x.builder.sec?.[i] === 'string' && (x.builder.sec[i] === 'auto' || x.builder.sec[i] === 'fallow' || CROP[x.builder.sec[i]]) ? x.builder.sec[i] : 'auto')) }; }
+  if (typeof x.lang === 'string' && LANGS.some(([k]) => k === x.lang)) o.lang = x.lang;
+  o.units = one(x.units, ['metric', 'imperial'], 'metric');
+  o.theme = one(x.theme, ['auto', 'light', 'dark'], 'auto');
+  o.fs = num(x.fs, 0.8, 1.4, 1);
+  o.tab = one(x.tab, ['farm', 'climate', 'goals', 'plans', 'lab', 'about'], 'farm');
+  if (x.v != null) o.v = x.v;
+  return o;
+}
 function deepMerge(a, b) {
-  for (const k in b) {
+  for (const k of Object.keys(b)) {
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
     if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k] && typeof a[k] === 'object') deepMerge(a[k], b[k]);
     else a[k] = b[k];
   }
@@ -113,7 +162,11 @@ async function boot() {
   if (S.farm) openFarm(S.farm, true);
   else go(S.tab === 'about' ? 'about' : 'farm');
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then((reg) => {
+    // when a new version takes over, reload once so every user always runs the latest code
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => { reg.update().catch(() => {}); setInterval(() => reg.update().catch(() => {}), 30 * 60e3); return reg; }).then(() => navigator.serviceWorker.ready).then((reg) => {
       // download the offline pack (all demo farms) once the app is idle
       const go2 = () => reg.active?.postMessage('offline-pack');
       'requestIdleCallback' in window ? requestIdleCallback(go2, { timeout: 8000 }) : setTimeout(go2, 4000);
@@ -235,7 +288,7 @@ async function openFarm(f, quiet = false) {
   ins = climateInsights(base);
   applySoil(raw.soil, sameFarm);
   if (!sameFarm) {
-    S.practice = { ...structuredClone(DEF.practice), ...(f.demo ? DEMO_PRACTICE[f.demo] || {} : {}) };
+    S.practice = { ...clone(DEF.practice), ...(f.demo ? clone(DEMO_PRACTICE[f.demo] || {}) : {}) };
     S.builder = { seq: [], sec: [] };
   }
   shift = null; ndvi = null; custom = null; recent = null;
@@ -314,7 +367,7 @@ function renderFarm() {
     <article class="card">
       <h2>${esc(t('soil_title'))} <small class="pill">${esc(t('texture'))}: ${esc(cls.replace(/_/g, ' '))}</small></h2>
       <p class="muted small">${S.soilPending ? `<span class="spin sm"></span> ${esc(t('loading_soil'))}` : esc(S.soilAuto ? t('soil_src') : t('soil_none'))}</p>
-      <div class="texbar" aria-hidden="true"><i style="width:${s.sand}%;background:#e7c98f"></i><i style="width:${s.silt}%;background:#b9a07a"></i><i style="width:${s.clay}%;background:#8a6a4f"></i></div>
+      <div class="texbar" aria-hidden="true"><i style="width:${+s.sand || 0}%;background:#e7c98f"></i><i style="width:${+s.silt || 0}%;background:#b9a07a"></i><i style="width:${+s.clay || 0}%;background:#8a6a4f"></i></div>
       <div class="fields">
         ${num('sand', t('sand'), s.sand, 0, 100, 1, '%')}${num('silt', t('silt'), s.silt, 0, 100, 1, '%')}${num('clay', t('clay'), s.clay, 0, 100, 1, '%')}
         ${num('soc', t('soc'), s.soc, 1, 150, 0.1, 'g/kg')}${num('ph', t('ph'), s.ph, 3.5, 10, 0.1, '')}${num('bd', t('bd'), s.bd, 0.8, 1.9, 0.01, 'g/cm³')}
@@ -348,7 +401,8 @@ function renderFarm() {
   v.oninput = (e) => {
     const el = e.target;
     if (el.dataset.soil) {
-      S.soil[el.dataset.soil] = +el.value; S.soilEdited = true; save(); rerun();
+      if (el.value === '' || !Number.isFinite(+el.value)) return;
+      S.soil[el.dataset.soil] = clamp(+el.value, +el.min, +el.max); S.soilEdited = true; save(); rerun();
       if (['sand', 'silt', 'clay'].includes(el.dataset.soil)) clearTimeout(v._t), (v._t = setTimeout(renderFarm, 700));
     }
     if (el.dataset.prac) {
@@ -363,7 +417,7 @@ function renderFarm() {
     if (e.target.dataset.cursec != null) { S.practice.currentSec = S.practice.currentSec || []; S.practice.currentSec[+e.target.dataset.cursec] = e.target.value || undefined; save(); rerun(); }
   };
 }
-const num = (k, label, val, min, max, step, unit) => `<label class="numf"><span>${esc(label)}</span><span class="numw"><input type="number" inputmode="decimal" data-soil="${k}" value="${val}" min="${min}" max="${max}" step="${step}"><em>${unit}</em></span></label>`;
+const num = (k, label, val, min, max, step, unit) => `<label class="numf"><span>${esc(label)}</span><span class="numw"><input type="number" inputmode="decimal" data-soil="${k}" value="${esc(val)}" min="${min}" max="${max}" step="${step}"><em>${unit}</em></span></label>`;
 
 function zoneLabel() {
   if (!ins) return '';
@@ -636,6 +690,7 @@ function renderPlans() {
     ${miniScores(b)}${metricsRow(b, null, true)}
     <div class="row gap"><button class="btn ghost sm" data-act="openPlan" data-i="-1">${esc(t('details'))}</button></div>
   </article>` : `<p class="note warn">${esc(t('cur_fail'))}</p>`}
+  ${res.droppedInclude?.length ? `<p class="note warn">⚠️ ${res.droppedInclude.map((id) => esc(cropName(id))).join(', ')}: ${esc(t('unsuitable'))} — ${esc(t('cur_fail'))}</p>` : ''}
   ${res.top.length ? `${summary(res.top[0], b)}<div class="plans">${res.top.map((r, i) => planCard(r, i, b)).join('')}</div>` : `<p class="note warn">${esc(t('no_plans'))}</p>`}`;
   v.oninput = (e) => { const el = e.target; if (el.dataset.scen) { S.scen[el.dataset.scen] = +el.value; el.previousElementSibling.textContent = `${el.value > 0 ? '+' : ''}${el.value}${el.dataset.scen === 'dT' ? ' °C' : '%'}`; save(); rerun(); } };
 }
@@ -890,7 +945,8 @@ function settingsHTML() {
     ${canOfferInstall() ? `<button class="btn primary" data-act="install">⬇ ${esc(t('install'))}</button>` : `<span class="pill">${esc(t('installed'))}</span>`}
     <button class="btn" data-act="about">ℹ️ ${esc(t('about'))}</button>
     <button class="btn ghost" data-act="resetAll">↺ ${esc(t('reset'))}</button>
-  </div>`;
+  </div>
+  <p class="muted small">FieldShift ${APP_VERSION}</p>`;
 }
 // ---------------- Install as an app (Android, iPhone, desktop) ----------------
 let deferredInstall = null;
@@ -975,7 +1031,7 @@ function speak(text) {
     if (!v && speechSynthesis.getVoices().length) toast('🔇 ' + code + ' voice not installed on this device — add it in your phone’s text-to-speech settings.', 5000);
     const female = v && FEMALE.test(v.name) && !MALE.test(v.name);
     const clean = text.replace(/[^\p{L}\p{N}\s.,:;%+\-–()$]/gu, ' ').replace(/\s+/g, ' ');
-    const parts = clean.split(/(?<=[.;:])\s+/).filter((x) => x.trim());
+    const parts = clean.replace(/([.;:])\s+/g, '$1\n').split('\n').filter((x) => x.trim());
     parts.forEach((part) => {
       const u = new SpeechSynthesisUtterance(part);
       u.lang = code; if (v) u.voice = v;

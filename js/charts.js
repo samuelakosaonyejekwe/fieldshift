@@ -126,7 +126,10 @@ export function timeMachine(plan, cur, U) {
   const W = CW, H = 230, P = { l: 56, r: 14, t: 20, b: 64 };
   const yrs = plan.map((h) => h.y);
   const cum = (arr) => { let a = 0; return arr.map((h) => (a += h.income)); };
-  const cp = cum(plan), cc = cur ? cum(cur.filter((h) => yrs.includes(h.y))) : null;
+  const cp = cum(plan);
+  // align the current rotation by calendar year (a missing year adds nothing)
+  let cc = null;
+  if (cur) { const by = new Map(cur.map((h) => [h.y, h.income])); let a = 0; cc = yrs.map((y) => (a += by.get(y) ?? 0)); }
   const all = [...cp, ...(cc || []), 0].map(U.money);
   const yt = niceTicks(Math.min(...all), Math.max(...all));
   const n = yrs.length;

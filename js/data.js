@@ -184,7 +184,8 @@ export function buildClimate(raw) {
   for (const s of Object.keys(series)) series[s] = series[s].filter((_, i) => keep[i]);
   // fill radiation gaps with column means
   for (const s of ['Rs', 'GW', 'GT', 'RH', 'WS', 'Tx', 'Tn']) {
-    const cm = MK.map((_, m) => mean(series[s].map((r) => r[m])));
+    const fb = { Rs: 18, GW: 0.5, GT: 0.5, RH: 60, WS: 2 }[s];
+    const cm = MK.map((_, m) => { const v = mean(series[s].map((r) => r[m])); return Number.isFinite(v) ? v : s === 'Tx' ? mean(series.T.map((r) => r[m])) + 8 : s === 'Tn' ? mean(series.T.map((r) => r[m])) - 8 : fb; });
     series[s] = series[s].map((r) => r.map((v, m) => (Number.isFinite(v) ? v : cm[m])));
   }
   const frost = MK.map((m) => (ok(raw.clim?.FROST_DAYS?.[m]) ? raw.clim.FROST_DAYS[m] : 0));
@@ -215,7 +216,7 @@ export function deriveClimate(base, scen = {}) {
   norm.R = w15.map((w) => (R * w) / sw);
   return {
     ...base, years, S, norm, annP, annT, annET, Pann, ETann, Tann: mean(annT),
-    aridity: Pann / ETann, frost: base.frost, dT, dP,
+    aridity: ETann > 1 ? Pann / ETann : 0, frost: base.frost, dT, dP, from: scen.from,
     // fraction of years where the monthly extreme min < thr
     pBelow: (m, thr) => S.Tn.filter((r) => r[m] < thr).length / S.Tn.length,
     pAbove: (m, thr) => S.Tx.filter((r) => r[m] > thr).length / S.Tx.length,
