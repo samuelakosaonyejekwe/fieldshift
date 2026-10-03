@@ -1,5 +1,5 @@
 // FieldShift service worker: app shell offline, NASA/soil data network-first with cache fallback.
-const APP_V = '1.11.1';
+const APP_V = '1.12.0';
 const VER = 'fieldshift-' + APP_V;
 // versioned files (?v=APP_V) never change: they are cached exactly and never swapped for another version
 const V = (u) => `${u}?v=${APP_V}`;
@@ -17,13 +17,30 @@ self.addEventListener('install', (e) => {
     .then((c) => c.addAll([...PLAIN, ...VERSIONED].map(fresh)).then(() => Promise.all(LANG_FILES.map((u) => c.add(fresh(u)).catch(() => {})))))
     .then(() => self.skipWaiting()));
 });
+// Everything needed to run with no connection: app files, every language, every demo farm
+const OFFLINE_SET = () => [...PLAIN, ...VERSIONED, ...LANG_FILES, ...DEMOS];
+async function offlineStatus() {
+  let n = 0;
+  for (const u of OFFLINE_SET()) if (await caches.match(u)) n++;
+  return { type: 'offline-status', n, total: OFFLINE_SET().length };
+}
+async function broadcast(msg) { (await self.clients.matchAll({ includeUncontrolled: true })).forEach((cl) => cl.postMessage(msg)); }
 self.addEventListener('message', (e) => {
+  if (e.data === 'offline-status') e.waitUntil(offlineStatus().then(broadcast));
   if (e.data === 'offline-pack') {
-    e.waitUntil(caches.open('fs-demos').then(async (c) => {
-      for (const u of DEMOS) { if (!(await c.match(u))) { try { await c.add(fresh(u)); } catch { /* retry next visit */ } } }
-      const n = (await c.keys()).length;
-      (await self.clients.matchAll()).forEach((cl) => cl.postMessage({ type: 'pack', n, total: DEMOS.length }));
-    }));
+    // download whatever is missing, reporting progress as it goes
+    e.waitUntil((async () => {
+      const app = await caches.open(VER), demos = await caches.open('fs-demos');
+      const all = OFFLINE_SET();
+      let n = 0;
+      for (const u of all) {
+        if (!(await caches.match(u))) { try { await (DEMOS.includes(u) ? demos : app).add(fresh(u)); } catch { /* retried next time */ } }
+        if (await caches.match(u)) n++;
+        await broadcast({ type: 'offline-status', n, total: all.length, busy: true });
+      }
+      await broadcast({ ...(await offlineStatus()), busy: false });
+      await broadcast({ type: 'pack', n: (await demos.keys()).length, total: DEMOS.length });
+    })());
   }
 });
 self.addEventListener('activate', (e) => {

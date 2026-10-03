@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.11.1';
-import { t, setLang, lang, LANGS, RTL, cropName, cropLabel, monthName, guessLang } from './i18n.js?v=1.11.1';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.11.1';
-import * as CH from './charts.js?v=1.11.1';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.12.0';
+import { t, setLang, lang, LANGS, RTL, cropName, cropLabel, monthName, guessLang } from './i18n.js?v=1.12.0';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.12.0';
+import * as CH from './charts.js?v=1.12.0';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.11.1';
+export const APP_VERSION = '1.12.0';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let shiftTok = 0;
@@ -139,7 +139,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js?v=1.11.1', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.12.0', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -156,7 +156,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js?v=1.11.1');
+  engineMod = engineMod || await import('./engine.js?v=1.12.0');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
@@ -190,11 +190,12 @@ async function boot() {
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => { reg.update().catch(() => {}); setInterval(() => reg.update().catch(() => {}), 30 * 60e3); return reg; }).then(() => navigator.serviceWorker.ready).then((reg) => {
       // download the offline pack (all demo farms) once the app is idle
+      reg.active?.postMessage('offline-status');
       const go2 = () => reg.active?.postMessage('offline-pack');
       'requestIdleCallback' in window ? requestIdleCallback(go2, { timeout: 8000 }) : setTimeout(go2, 4000);
     }).catch(() => {});
     navigator.serviceWorker.addEventListener('message', (e) => {
-      if (e.data?.type === 'pack' && e.data.n >= e.data.total) { try { if (!localStorage.getItem('fs-pack')) { localStorage.setItem('fs-pack', '1'); toast(t('offline_ready', { n: e.data.n })); } } catch { /* */ } }
+      if (e.data?.type === 'offline-status') { offline = { n: e.data.n, total: e.data.total, busy: !!e.data.busy }; updateOffline(); }
     });
   }
   const net = () => document.body.classList.toggle('is-offline', !navigator.onLine);
@@ -228,9 +229,10 @@ function renderShell() {
     <div class="top-r">
       <label class="sel-lang">${ico('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>', 18)}
         <select id="langSel" aria-label="${esc(t('language'))}">${LANGS.map(([k, n]) => `<option value="${k}" ${k === S.lang ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
- <button class="install-btn" id="installBtn" data-act="install" hidden aria-label="${esc(t('install'))}" title="${esc(t('install'))}"><span class="ib-ic"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7v7M9 11.5l3 3 3-3M10 18.5h4"/></svg></span><span class="ib-t">${esc(t('install'))}</span></button>
+ <span id="offBadge">${offBadge()}</span>
+     <button class="install-btn" id="installBtn" data-act="install" hidden aria-label="${esc(t('install'))}" title="${esc(t('install'))}"><span class="ib-ic"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7v7M9 11.5l3 3 3-3M10 18.5h4"/></svg></span><span class="ib-t">${esc(t('install'))}</span></button>
       <button class="icon-btn" data-act="guide" aria-label="${esc(t('guide'))}" title="${esc(t('guide'))}">${ico('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01"/>', 20)}</button>
-      <button class="icon-btn" data-act="settings" aria-label="${esc(t('settings'))}">${ico('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>', 20)}</button>
+      <button class="icon-btn" data-act="settings" aria-label="${esc(t('settings'))}" title="${esc(t('settings'))}">${ico('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>', 20)}</button>
     </div>
   </header>
   <nav class="tabs" id="tabs" aria-label="${esc(t('nav_sections'))}">${TABS.map(([k, p], i) => `<a href="#${k}" data-go="${k}" id="tab-${k}"><span class="tab-n">${i + 1}</span>${ico(p)}<span>${esc(t('tab_' + k))}</span></a>`).join('')}</nav>
@@ -444,6 +446,20 @@ function keepUI(view, render) {
   if (sel) { const el = view.querySelector(sel); if (el) { el.focus({ preventScroll: true }); try { if (caret != null) el.setSelectionRange(caret, caret); } catch { /* */ } } }
 }
 
+// "What do the colours mean?" — a small expandable explanation under a chart
+// a label with its plain-language definition (tap or hover)
+const defn = (label, ...keys) => (keys.filter(Boolean).length ? `<span class="def" tabindex="0" data-tip="${keys.filter(Boolean).map((k) => esc(t(k))).join('<br><br>')}">${esc(label)}<sup aria-hidden="true">ⓘ</sup></span>` : esc(label));
+const hint = (k, p) => `<p class="hint">${esc(t(k, p))}</p>`;
+const help = (...keys) => `<details class="help"><summary><span aria-hidden="true">ⓘ</span> ${esc(t('help_btn'))}</summary>${keys.map((k) => `<p>${esc(t(k))}</p>`).join('')}</details>`;
+// key for a rotation wheel: the crop families that appear in this plan, plus cover crops and bare soil
+function wheelKey(r) {
+  const fams = [...new Set(r.years.flatMap((y) => [y.id, ...(y.sec?.type === 'double' ? [y.sec.id] : [])]).map((id) => CROP[id].fam))];
+  const items = fams.map((f) => [t(FAMILIES[f]?.key || 'fam_other'), FAMILIES[f]?.color || '#2a78d6', 'bar']);
+  if (r.years.some((y) => y.sec?.type === 'cover')) items.push([t('cover'), 'color-mix(in srgb, #1baf7a 55%, transparent)', 'bar']);
+  if (r.occ?.some((o) => !o)) items.push([t('bare_soil'), 'var(--bare)', 'bar']);
+  return CH.legend(items);
+}
+
 // ---------------- FARM TAB ----------------
 function renderFarm() {
   const v = $('#v-farm');
@@ -456,7 +472,7 @@ function renderFarm() {
     <article class="card">
       <h2>${esc(t('farm_title'))}</h2>
       <p class="big">${esc(S.farm.name || '')}</p>
-      <p class="muted"><span dir="ltr">${S.farm.lat.toFixed(4)}°, ${S.farm.lon.toFixed(4)}°</span> · ${raw.elev != null ? `${U.n(U.m(raw.elev))} ${U.mL}` : ''} · ${esc(zoneLabel())}</p>
+      <p class="muted"><span dir="ltr">${S.farm.lat.toFixed(4)}°, ${S.farm.lon.toFixed(4)}°</span> · ${raw.elev != null ? defn(`${U.n(U.m(raw.elev))} ${U.mL}`, 'elev') : ''} · ${defn(zoneLabel(), 'gl_zone')}</p>
       <div class="row wrap gap">
         <button class="btn" data-act="changeLoc">${ico('<path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>', 18)} ${esc(t('change_loc'))}</button>
         <button class="btn ghost" data-act="map">${ico('<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>', 18)} ${esc(t('map_layers'))}</button>
@@ -467,12 +483,14 @@ function renderFarm() {
     <article class="card">
       <h2>${esc(t('soil_title'))} <small class="pill">${esc(t('texture'))}: <span id="texName">${esc(t('tex_' + cls))}</span></small></h2>
       <p class="muted small">${S.soilPending ? `<span class="spin sm"></span> ${esc(t('loading_soil'))}` : esc(S.soilAuto ? t('soil_src') : t('soil_none'))}</p>
+      ${help('h_soil', 'hint_tex')}
       <div class="texbar" aria-hidden="true"><i style="width:${(100 * (+s.sand || 0)) / Math.max(100, s.sand + s.silt + s.clay)}%;background:#e7c98f"></i><i style="width:${(100 * (+s.silt || 0)) / Math.max(100, s.sand + s.silt + s.clay)}%;background:#b9a07a"></i><i style="width:${(100 * (+s.clay || 0)) / Math.max(100, s.sand + s.silt + s.clay)}%;background:#8a6a4f"></i></div>
       <p class="note warn small" id="soilSum" ${Math.abs(s.sand + s.silt + s.clay - 100) <= 3 ? 'hidden' : ''}>${esc(t('soil_sum_warn', { sum: Math.round(s.sand + s.silt + s.clay) }))}</p>
       <div class="fields">
         ${num('sand', t('sand'), s.sand, 0, 100, 1, '%')}${num('silt', t('silt'), s.silt, 0, 100, 1, '%')}${num('clay', t('clay'), s.clay, 0, 100, 1, '%')}
         ${num('soc', t('soc'), s.soc, 1, 150, 0.1, 'g/kg')}${num('ph', t('ph'), s.ph, 3.5, 10, 0.1, '')}${num('bd', t('bd'), s.bd, 0.8, 1.9, 0.01, 'g/cm³')}
       </div>
+      <ul class="hints"><li>${esc(t('ph'))}: ${esc(t('hint_ph'))}</li><li>${esc(t('soc'))}: ${esc(t('hint_soc'))}</li><li>${esc(t('bd'))}: ${esc(t('hint_bd'))}</li></ul>
       ${S.soilEdited && S.soilAuto ? `<button class="btn ghost sm" data-act="soilReset">↺ SoilGrids</button>` : ''}
     </article>
   </div>
@@ -482,10 +500,10 @@ function renderFarm() {
       <label>${esc(t('irrigation'))}</label>${seg('irrigation', ['none', 'supplemental', 'full'], 'irr_')}
       <label>${esc(t('tillage'))}</label>${seg('tillage', ['conventional', 'reduced', 'notill'], 'till_')}
       <label>${esc(t('residue'))}</label>${seg('residue', ['retained', 'partial', 'removed'], 'res_')}
-      <label>${esc(t('drainage'))}</label>${seg('drainage', ['good', 'moderate', 'poor'], 'dr_')}
-      <label>${esc(t('salinity'))}</label>${seg('salinity', ['none', 'moderate', 'high'], 'sal_')}
-      <label for="slope">${esc(t('slope'))} <output>${p.slope}%</output></label><input type="range" id="slope" min="0" max="30" step="1" value="${p.slope}" data-prac="slope">
-      <label for="manure">${esc(t('manure'))} <output>${U.n(U.tha(p.manure), 1)} ${U.thaL} ${esc(t('per_year'))}</output></label><input type="range" id="manure" min="0" max="20" step="1" value="${p.manure}" data-prac="manure">
+      <label>${esc(t('drainage'))}</label><div>${seg('drainage', ['good', 'moderate', 'poor'], 'dr_')}${hint('hint_drain')}</div>
+      <label>${esc(t('salinity'))}</label><div>${seg('salinity', ['none', 'moderate', 'high'], 'sal_')}${hint('hint_sal')}</div>
+      <label for="slope">${esc(t('slope'))} <output>${p.slope}%</output></label><div><input type="range" id="slope" min="0" max="30" step="1" value="${p.slope}" data-prac="slope">${hint('hint_slope')}</div>
+      <label for="manure">${esc(t('manure'))} <output>${U.n(U.tha(p.manure), 1)} ${U.thaL} ${esc(t('per_year'))}</output></label><div><input type="range" id="manure" min="0" max="20" step="1" value="${p.manure}" data-prac="manure">${hint('hint_manure')}</div>
       <label class="tog"><input type="checkbox" data-prac="conservation" ${p.conservation ? 'checked' : ''}> ${esc(t('conservation'))}</label>
     </div>
   </article>
@@ -496,6 +514,7 @@ function renderFarm() {
       <select class="mini-sel" data-cursec="${i}" aria-label="${esc(t('then'))}"><option value="">${esc(t('then'))}: —</option>${[...MAIN_CROPS.filter((c) => !c.per), ...COVER_CROPS].map((c) => `<option value="${c.id}" ${p.currentSec?.[i] === c.id ? 'selected' : ''}>${esc(t('then'))}: ${c.cover ? '🌱' : '➕'} ${esc(cropName(c.id))}</option>`).join('')}</select></span>`).join('<span class="arr">→</span>')}
       ${p.current.length < 5 ? `<select data-act-change="curAdd" aria-label="${esc(t('add_year'))}"><option value="">+ ${esc(t('add_year'))}</option>${MAIN_CROPS.map((c) => `<option value="${c.id}">${c.ic} ${esc(cropName(c.id))}</option>`).join('')}</select>` : ''}
     </div>
+    ${hint('hint_then')}
     <label class="tog"><input type="checkbox" data-prac="currentCover" ${p.currentCover ? 'checked' : ''}> ${esc(t('current_cover'))}</label>
   </article>
   <div class="next"><button class="btn primary" data-go="climate">${esc(t('tab_climate'))} →</button></div>`;
@@ -563,6 +582,7 @@ function landing() {
       </details>
     </div>
     <p><button class="link" data-act="guide">❓ ${esc(t('guide_title'))}</button></p>
+    <div class="offline-slot">${offlineCard()}</div>
     <h2 class="demo-h">${esc(t('or_demo'))}</h2>
     <p class="muted small center">${esc(t('demo_note'))}</p>
     <div class="demos">${Object.entries(groups).filter(([, a]) => a.length).map(([g, a]) => `<div class="demo-g"><h3>${esc(t('reg_' + g))}</h3><div class="chips">${a.map(([id, n, lat, lon]) => `<button class="chip demo" data-act="demo" data-id="${id}" data-lat="${lat}" data-lon="${lon}" data-name="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`).join('')}</div>
@@ -603,10 +623,11 @@ function renderClimate() {
   const C = ins.C;
   const y0 = ins.years[0], y1 = ins.years[ins.years.length - 1];
   const sig = (p) => (p < 0.05 ? `<em class="sig">${esc(t('sig'))}</em>` : `<em class="nsig">${esc(t('notsig'))}</em>`);
-  const tile = (label, val, sub, tone = '') => `<div class="kpi ${tone}"><span>${esc(label)}</span><b>${val}</b><small>${sub}</small></div>`;
+  const KPI_DEF = { [t('k_rain')]: 'gl_cv', [t('k_arid')]: 'gl_arid', [t('k_warm')]: 'gl_warm', [t('k_rainTrend')]: 'gl_warm', [t('k_dry')]: 'gl_dry', [t('k_soilw')]: 'gl_soilw', ['_pts']: 'gl_pts', [t('k_seasons')]: 'gl_seasons' };
+  const tile = (label, val, sub, tone = '') => `<div class="kpi ${tone}"><span>${defn(label, KPI_DEF[label], label === t('k_soilw') ? 'gl_pts' : null)}</span><b>${val}</b><small>${sub}</small></div>`;
   const dTdec = U.dTemp(ins.tTrend);
   v.innerHTML = `
-  <div class="head"><h1>${esc(t('clim_title'))}</h1><p class="muted">${esc(t('clim_sub', { y0, y1 }))} · ${esc(zoneLabel())}</p></div>
+  <div class="head"><h1>${esc(t('clim_title'))}</h1><p class="muted">${esc(t('clim_sub', { y0, y1 }))} · ${defn(zoneLabel(), 'gl_zone')}</p></div>
   <div class="now-slot">${nowHTML()}</div>
   <div class="kpis">
     ${tile(t('k_temp'), `${U.n(U.temp(ins.Tann), 1)}${U.tempL}`, '')}
@@ -615,23 +636,23 @@ function renderClimate() {
     ${tile(t('k_warm'), `${dTdec >= 0 ? '+' : ''}${U.n(dTdec, 2)}${U.tempL}`, `${esc(t('per_decade'))} · ${sig(ins.tP)}`, ins.tTrend > 0.25 ? 'warn' : '')}
     ${tile(t('k_rainTrend'), `${ins.pTrend >= 0 ? '+' : ''}${U.n(ins.pTrend, 1)}%`, `${esc(t('per_decade'))} · ${sig(ins.pP)}`, ins.pTrend < -5 ? 'warn' : '')}
     ${tile(t('k_dry'), `${Math.round(ins.dryFreq * 100)}%`, `${esc(t('of_years'))}: ${ins.dryYears.slice(-4).join(', ')}`, ins.dryFreq > 0.2 ? 'warn' : '')}
-    ${tile(t('k_soilw'), `${Math.round(ins.gwAnn.reduce((a, b) => a + b, 0) / ins.gwAnn.length * 100)}%`, `${ins.gwTrend >= 0 ? '+' : ''}${U.n(ins.gwTrend * 100, 1)} pts ${esc(t('per_decade'))}`)}
+    ${tile(t('k_soilw'), `${Math.round(ins.gwAnn.reduce((a, b) => a + b, 0) / ins.gwAnn.length * 100)}%`, `${ins.gwTrend >= 0 ? '+' : ''}${U.n(ins.gwTrend * 100, 1)} ${esc(t('pts'))} ${esc(t('per_decade'))}`)}
     ${tile(t('k_seasons'), String(ins.seasons), ins.wet.map((w, m) => (w ? monthName(m).slice(0, 1) : '·')).join(''))}
   </div>
   <div class="grid2">
-    <article class="card"><h2>${esc(t('ch_rain'))}</h2>${CH.rainChart(C.norm, U)}</article>
-    <article class="card"><h2>${esc(t('ch_temp'))}</h2>${CH.tempChart(C.norm, C.frost, U)}</article>
-    <article class="card"><h2>${esc(t('ch_trendT', { y0 }))}</h2>${CH.trendChart(ins.years, ins.annT.map(U.temp), { slope: ins.tReg.slope * (U.imp ? 1.8 : 1), icpt: U.imp ? ins.tReg.icpt * 1.8 + 32 : ins.tReg.icpt }, U.tempL, 'var(--s4d)')}</article>
-    <article class="card"><h2>${esc(t('ch_trendP', { y0 }))}</h2>${CH.trendChart(ins.years, ins.annP.map(U.mm), { slope: U.mm(ins.pReg.slope), icpt: U.mm(ins.pReg.icpt) }, U.mmL, 'var(--s1)', (x) => U.n(x))}</article>
+    <article class="card"><h2>${esc(t('ch_rain'))}</h2>${CH.rainChart(C.norm, U)}${help('h_rain', 'gl_et0')}</article>
+    <article class="card"><h2>${esc(t('ch_temp'))}</h2>${CH.tempChart(C.norm, C.frost, U)}${help('h_temp')}</article>
+    <article class="card"><h2>${esc(t('ch_trendT', { y0 }))}</h2>${CH.trendChart(ins.years, ins.annT.map(U.temp), { slope: ins.tReg.slope * (U.imp ? 1.8 : 1), icpt: U.imp ? ins.tReg.icpt * 1.8 + 32 : ins.tReg.icpt }, U.tempL, 'var(--s4d)')}${help('h_trend')}</article>
+    <article class="card"><h2>${esc(t('ch_trendP', { y0 }))}</h2>${CH.trendChart(ins.years, ins.annP.map(U.mm), { slope: U.mm(ins.pReg.slope), icpt: U.mm(ins.pReg.icpt) }, U.mmL, 'var(--s1)', (x) => U.n(x))}${help('h_trend')}</article>
   </div>
-  <article class="card" id="shiftCard"><h2>${esc(t('shift_title'))}</h2><p class="muted small">${esc(t('shift_sub'))}</p><div id="shiftBody">${shift ? shiftHTML() : `<div class="skel"></div>`}</div></article>
-  <article class="card" id="ndviCard"><h2>${esc(t('ndvi_title'))}</h2><p class="muted small">${esc(t('ndvi_sub'))}</p><div id="ndviBody">${ndvi ? ndviHTML() : `<button class="btn" data-act="ndvi">🛰️ ${esc(t('ndvi_load'))}</button>`}</div></article>
+  <article class="card" id="shiftCard"><h2>${esc(t('shift_title'))}</h2><p class="muted small">${esc(t('shift_sub'))}</p>${help('h_shift', 'hint_shift2')}<div id="shiftBody">${shift ? shiftHTML() : `<div class="skel"></div>`}</div></article>
+  <article class="card" id="ndviCard"><h2>${esc(t('ndvi_title'))}</h2><p class="muted small">${esc(t('ndvi_sub'))}</p>${help('h_ndvi', 'gl_ndvi')}<div id="ndviBody">${ndvi ? ndviHTML() : `<button class="btn" data-act="ndvi">🛰️ ${esc(t('ndvi_load'))}</button>`}</div></article>
   <div class="next"><button class="btn ghost" data-act="map">🗺️ ${esc(t('map_layers'))}</button><button class="btn primary" data-go="goals">${esc(t('tab_goals'))} →</button></div>`;
   if (!shift) { const tok = ++shiftTok; call('shift').then((r) => { if (tok !== shiftTok) return; shift = r; const b = $('#shiftBody'); if (b) b.innerHTML = shiftHTML(); }).catch(() => {}); }
   if (!ndvi && navigator.onLine) ACT.ndvi();
 }
 function shiftHTML() {
-  const labels = shift.eras.map((e) => `${t('era_' + e.k)}${e.dT ? ` (${e.dT > 0 ? '+' : ''}${U.n(U.dTemp(e.dT), 1)}°)` : ''}`);
+  const labels = shift.eras.map((e) => `${t('era_' + e.k)}${e.dT ? ` (${e.dT > 0 ? '+' : ''}${U.n(U.dTemp(e.dT), 1)} ${U.tempL})` : ''}`);
   return CH.shiftTable(shift, labels);
 }
 function ndviHTML() {
@@ -668,7 +689,7 @@ function nowHTML() {
       ${Number.isFinite(a.gw) ? `<div><span>💧 ${esc(t('now_soil'))}</span><b>${Math.round(a.gw * 100)}%</b><small>${esc(t('normal_is', { v: Math.round(a.gwN * 100) + '%' }))}</small></div>` : ''}
     </div>
     <p>${esc(t(dry ? 'now_dry' : wet ? 'now_wet' : 'now_ok'))}${hot ? ' ' + esc(t('now_hot')) : ''}</p>
-    <p class="muted small">${esc(t('now_sub'))}</p></section>`;
+    <p class="muted small">${esc(t('now_sub'))}</p>${help('h_now')}</section>`;
 }
 
 // ---------------- GOALS TAB ----------------
@@ -700,9 +721,9 @@ function renderGoals() {
   v.innerHTML = `
   <div class="head"><h1>${esc(t('goals_title'))}</h1><p class="muted">${esc(t('goals_sub'))}</p></div>
   <article class="card">
-    <h2>${esc(t('presets'))}</h2>
+    <h2>${esc(t('presets'))}</h2>${hint('hint_presets')}
     <div class="chips">${Object.keys(PRESETS).map((k) => `<button class="chip ${JSON.stringify(PRESETS[k]) === JSON.stringify(P) ? 'on' : ''}" data-act="preset" data-k="${k}">${esc(t('pr_' + k))}</button>`).join('')}</div>
-    <div class="sliders">${pr.map(([k, ic]) => `
+    ${hint('hint_prio')}<div class="sliders">${pr.map(([k, ic]) => `
       <div class="sl"><label for="p-${k}"><span class="sl-ic">${ic}</span><span><b>${esc(t('p_' + k))}</b><small>${esc(t('pd_' + k))}</small></span><output>${P[k]}</output></label>
       <input type="range" id="p-${k}" min="0" max="5" step="1" value="${P[k]}" data-prio="${k}" style="--v:${P[k] * 20}%"></div>`).join('')}</div>
   </article>
@@ -711,6 +732,7 @@ function renderGoals() {
     <div class="form">
       <label>${esc(t('rot_len'))}</label>
       <div class="seg">${['auto', '2', '3', '4', '5'].map((o) => `<button role="radio" aria-checked="${String(Cn.len) === o}" data-act="cons" data-k="len" data-v="${o}">${o === 'auto' ? esc(t('auto')) : `${o} ${esc(t('years'))}`}</button>`).join('')}</div>
+      <p class="hint span">${esc(t('hint_len'))}</p>
       <label class="tog"><input type="checkbox" data-cons="covers" ${Cn.covers ? 'checked' : ''}> ${esc(t('allow_cover'))}</label>
       <label class="tog"><input type="checkbox" data-cons="double" ${Cn.double ? 'checked' : ''}> ${esc(t('allow_double'))}</label>
       <label class="tog"><input type="checkbox" data-cons="hort" ${Cn.hort ? 'checked' : ''}> ${esc(t('allow_hort'))}</label>
@@ -723,8 +745,8 @@ function renderGoals() {
   <article class="card">
     <h2>${esc(t('prices'))}</h2>
     <div class="fields">
-      <label class="numf"><span>${esc(t('n_price'))}</span><span class="numw"><input type="number" step="0.05" min="0" max="20" value="${S.prices.n}" data-price="n"><em>$</em></span></label>
-      <label class="numf"><span>${esc(t('w_price'))}</span><span class="numw"><input type="number" step="0.01" min="0" max="5" value="${S.prices.irr}" data-price="irr"><em>$</em></span></label>
+      <label class="numf"><span>${esc(t('n_price'))}</span><span class="numw"><input type="number" step="0.05" min="0" max="20" value="${S.prices.n}" data-price="n"><em>$</em></span><small class="muted">${esc(t('gl_kgn'))}</small></label>
+      <label class="numf"><span>${esc(t('w_price'))}</span><span class="numw"><input type="number" step="0.01" min="0" max="5" value="${S.prices.irr}" data-price="irr"><em>$</em></span><small class="muted">${esc(t('hint_wprice'))}</small></label>
     </div>
   </article>
   <div class="next"><button class="btn primary" data-go="plans">${esc(t('tab_plans'))} →</button></div>`;
@@ -754,7 +776,7 @@ function delta(v, b, fmt, goodUp = true, unit = '') {
 function metricsRow(r, b, compact = false) {
   const items = [
     ['🪱', t('m_soc'), delta(r.socPct, b?.socPct, (x) => `${x.toFixed(1)}%`, true)],
-    ['🛡️', t('m_ero'), delta(U.tha(r.erosion), b ? U.tha(b.erosion) : null, (x) => x.toFixed(1), false, `${U.thaL}/${U.yr()}`)],
+    ['🏞️', t('m_ero'), delta(U.tha(r.erosion), b ? U.tha(b.erosion) : null, (x) => x.toFixed(1), false, `${U.thaL}/${U.yr()}`)],
     ['🧪', t('m_fert'), delta(U.kg(r.fert), b ? U.kg(b.fert) : null, (x) => Math.round(x), false, U.kgL)],
     ['💧', t('m_irr'), delta(U.mm(r.irr), b ? U.mm(b.irr) : null, (x) => Math.round(x), false, `${U.mmL}/${U.yr()}`)],
     ['💰', t('m_gm'), delta(U.money(r.gm), b ? U.money(b.gm) : null, (x) => Math.round(x), true, U.moneyL)],
@@ -765,7 +787,8 @@ function metricsRow(r, b, compact = false) {
     ['🌍', t('m_co2'), delta(U.tha(r.co2e), b ? U.tha(b.co2e) : null, (x) => x.toFixed(2), true, `t CO₂e/${U.imp ? 'ac' : 'ha'}/${U.yr()}`)],
     ['🌱', t('m_living'), delta(r.livingFrac * 100, b ? b.livingFrac * 100 : null, (x) => `${Math.round(x)}%`, true)],
   );
-  return `<div class="mets">${items.map(([ic, l, v]) => `<div class="met"><span>${ic} ${esc(l)}</span>${v}</div>`).join('')}</div>`;
+  const MET_DEF = { [t('m_soc')]: 'gl_soc', [t('m_ero')]: 'gl_ero', [t('m_fert')]: 'gl_fert', [t('m_irr')]: 'gl_irr', [t('m_gm')]: 'gl_gm', [t('m_p10')]: 'gl_p10', [t('m_fail')]: 'gl_fail', [t('m_co2')]: 'gl_co2', [t('m_living')]: 'gl_living' };
+  return `<div class="mets">${items.map(([ic, l, v]) => `<div class="met"><span>${ic} ${defn(l, MET_DEF[l])}</span>${v}</div>`).join('')}</div>`;
 }
 function reasonText(x) {
   const p = { ...x.p };
@@ -787,11 +810,11 @@ function renderPlans() {
   const b = res.baseline;
   const sc = res.scenario || {};
   v.innerHTML = `
-  <div class="head row wrap gap" style="justify-content:space-between"><div><h1>${esc(t('plans_title'))}</h1><p class="muted">${esc(t('plans_sub', { n: U.n(res.evaluated), y: res.climate.years.length, ms: res.ms }))}</p></div>
+  <div class="head row wrap gap" style="justify-content:space-between"><div><h1>${esc(t('plans_title'))}</h1><p class="muted">${esc(t('plans_sub', { n: U.n(res.evaluated), y: res.climate.years.length, ms: `${U.n(Math.max(0.1, res.ms / 1000), 1)} s` }))}</p>${help('h_scores', 'h_arrows', 'hint_cards', 'gl_score', 'gl_cover', 'gl_double', 'gl_fallow', 'gl_legume', 'gl_variety', 'gl_units', 'gl_pts')}</div>
     <button class="btn" data-act="report">📄 ${esc(t('report'))}</button></div>
   <div class="lens card flat">
-    <span class="lens-l">🔭 ${esc(t('lens'))}</span>
-    <div class="chips">${SC.map((k) => `<button class="chip ${S.scen.mode === k ? 'on' : ''}" data-act="scen" data-k="${k}">${esc(k === 'hotdry' ? t('sc_hotdry', { dT: QF.dT(2) }) : t('sc_' + k))}</button>`).join('')}</div>
+    <span class="lens-l">🔭 ${defn(t('lens'), 'gl_lens')}</span>
+    <div class="chips">${SC.map((k) => `<button class="chip ${S.scen.mode === k ? 'on' : ''}" data-act="scen" data-k="${k}" data-tip="${esc(t({ base: 'lens_base_d', recent: 'lens_recent_d', y2040: 'lens_trend_d', y2050: 'lens_trend_d', hotdry: 'lens_hotdry_d', custom: 'lens_custom_d' }[k], { y0: res.climate.years[0] }))}">${esc(k === 'hotdry' ? t('sc_hotdry', { dT: QF.dT(2) }) : t('sc_' + k))}</button>`).join('')}</div>
     ${S.scen.mode === 'custom' ? `<div class="row wrap gap custom-sc">
       <label>${esc(t('dT'))} <output>${QF.dT(S.scen.dT)}</output><input type="range" min="-1" max="5" step="0.5" value="${S.scen.dT}" data-scen="dT"></label>
       <label>${esc(t('dP'))} <output>${S.scen.dP > 0 ? '+' : ''}${S.scen.dP}%</output><input type="range" min="-40" max="30" step="5" value="${S.scen.dP}" data-scen="dP"></label></div>` : ''}
@@ -814,11 +837,11 @@ function summary(r, b) {
     ['🧪', t('m_fert'), U.kg(r.fert - b.fert), (x) => `${x >= 0 ? '+' : '−'}${U.n(Math.abs(x))}`, U.kgL, false],
     ...(Math.abs(r.irr - b.irr) > 5 ? [['💧', t('m_irr'), U.mm(r.irr - b.irr), (x) => `${x >= 0 ? '+' : '−'}${U.n(Math.abs(x))}`, `${U.mmL}/${U.yr()}`, false]] : []),
     ['🪱', t('m_soc'), r.socPct - b.socPct, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}`, '%', true],
-    ['🛡️', t('m_ero'), b.erosion ? ((r.erosion - b.erosion) / b.erosion) * 100 : 0, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x))}`, '%', false],
+    ['🏞️', t('m_ero'), b.erosion ? ((r.erosion - b.erosion) / b.erosion) * 100 : 0, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x))}`, '%', false],
     ['⚠️', t('m_fail'), (r.pFail - b.pFail) * 100, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x))}`, t('pts'), false],
   ];
-  return `<section class="summary"><div class="sum-h"><span class="eyebrow">#1 ${esc(t('vs_current'))}</span><div class="seq">${planTitle(r)}</div></div>
-    <div class="sum-k">${items.map(([ic, l, v, f, u, upGood]) => { const good = Math.abs(v) < 0.05 ? '' : (v > 0) === upGood ? 'up' : 'down'; return `<div><span>${ic} ${esc(l)}</span><b class="${good}">${f(v)}<small> ${esc(u)}</small></b></div>`; }).join('')}</div></section>`;
+  return `<section class="summary"><div class="sum-h"><span class="eyebrow">#1 ${esc(t('vs_current'))}</span><div class="seq">${planTitle(r)}</div></div>${help('h_summary', 'gl_pts')}
+    <div class="sum-k">${items.map(([ic, l, v, f, u, upGood]) => { const good = Math.abs(v) < 0.05 ? '' : (v > 0) === upGood ? 'up' : 'down'; const SUM_DEF = { [t('m_soc')]: 'gl_soc', [t('m_ero')]: 'gl_ero', [t('m_fert')]: 'gl_fert', [t('m_irr')]: 'gl_irr', [t('m_gm')]: 'gl_gm', [t('m_fail')]: 'gl_fail' }; return `<div><span>${ic} ${defn(l, SUM_DEF[l])}</span><b class="${good}">${f(v)}<small> ${esc(u)}</small></b></div>`; }).join('')}</div></section>`;
 }
 function planCard(r, i, b) {
   const good = r.reasons.filter((x) => !x.warn).slice(0, 3), warn = r.reasons.filter((x) => x.warn).slice(0, 1);
@@ -886,24 +909,24 @@ function planDetail(r, label) {
   </div>
   <div class="print-only"><h1>FieldShift — ${esc(S.farm?.name || '')}</h1><p>${S.farm?.lat.toFixed(3)}, ${S.farm?.lon.toFixed(3)} · ${esc(zoneLabel())} · NASA POWER ${res.climate.years[0]}–${res.climate.years[res.climate.years.length - 1]} · ${new Date().toLocaleDateString(lang())}</p></div>
   <div class="grid2 tight">
-    <section class="card flat center"><h3>${esc(t('wheel'))}</h3>${CH.wheel(r, 240, true)}</section>
+    <section class="card flat center"><h3>${esc(t('wheel'))}</h3>${CH.wheel(r, 240, true)}${wheelKey(r)}${help('h_wheel')}</section>
     <section class="card flat"><h3>${esc(t('why'))}</h3>
       <ul class="reasons big">${r.reasons?.map((x) => `<li class="${x.warn ? 'w' : ''}">${x.ic} ${esc(reasonText(x))}</li>`).join('') || ''}</ul></section>
   </div>
-  <section class="card flat"><h3>${esc(t('calendar'))}</h3>${CH.calendar(r)}</section>
-  <section class="card flat"><h3>✅ ${esc(t('act_title'))}</h3><p class="muted small">${esc(t('act_sub'))}</p>${actionsHTML(r)}
+  <section class="card flat"><h3>${esc(t('calendar'))}</h3>${CH.calendar(r)}${help('h_calendar')}</section>
+  <section class="card flat"><h3>✅ ${esc(t('act_title'))}</h3><p class="muted small">${esc(t('act_sub'))}</p>${actionsHTML(r)}${help('gl_kgn', 'gl_rhizo', 'gl_cover')}
     <button class="btn sm noprint" data-act="ics">📅 ${esc(t('ics'))}</button></section>
   <section class="card flat">${metricsRow(r, isBase ? null : b)}</section>
   <div class="grid2 tight">
-    <section class="card flat"><h3>${esc(t('score_vs'))}</h3>${CH.compareBars(rows, names)}</section>
-    <section class="card flat"><h3>${esc(t('soc_chart'))}</h3>${CH.linesChart(socSeries, t('yr'), `t C/${U.imp ? 'ac' : 'ha'}`)}</section>
+    <section class="card flat"><h3>${esc(t('score_vs'))}</h3>${CH.compareBars(rows, names)}${help('h_compare')}</section>
+    <section class="card flat"><h3>${esc(t('soc_chart'))}</h3>${CH.linesChart(socSeries, t('yr'), `t C/${U.imp ? 'ac' : 'ha'}`)}${help('h_soc', 'gl_tc')}</section>
   </div>
   <section class="card flat tm"><h3>⏳ ${esc(t('tm_title', { y0: r.hist[0]?.y ?? '', y1: r.hist[r.hist.length - 1]?.y ?? '' }))}</h3>
     <p class="muted small">${esc(t('tm_sub'))} <b>${esc(t('tm_fails', { n: fails }))}</b></p>
-    ${r.hist.length ? CH.timeMachine(r.hist, isBase ? null : b?.hist, U) : ''}</section>
+    ${r.hist.length ? CH.timeMachine(r.hist, isBase ? null : b?.hist, U) : ''}${help('h_tm', 'hint_tm2')}</section>
   <section class="card flat"><h3>${esc(t('year_table'))}</h3>
-    <div class="tbl-w"><table class="tbl"><thead><tr><th>${esc(t('yr'))}</th><th>${esc(t('crop'))}</th><th>${esc(t('sow'))}</th><th>${esc(t('harvest'))}</th><th>${esc(t('exp_yield'))}</th><th>${esc(t('m_fert'))}</th><th>${esc(t('m_irr'))}</th><th>${esc(t('m_fail'))}</th><th>${esc(t('then'))}</th></tr></thead>
-    <tbody>${r.years.map((y, i) => `<tr><td>${i + 1}</td><td>${CROP[y.id].ic} ${esc(cropLabel(y.id, y.v))}</td><td>${monthName(y.plant)}</td><td>${monthName(y.harv)}</td><td>${U.n(U.tha(y.yield), 1)} ${U.thaL}</td><td>${U.n(U.kg(y.fert))}</td><td>${U.n(U.mm(y.irr))}</td><td>${Math.round(y.pFail * 100)}%</td><td>${y.sec.id ? `${CROP[y.sec.id].ic} ${esc(cropName(y.sec.id))} <small>(${esc(t(y.sec.type))}, ${monthName(y.sec.start)}–${monthName(y.sec.end)})</small>` : esc(t(y.sec.type === 'none' ? 'none' : 'fallow'))}</td></tr>`).join('')}</tbody></table></div>
+    <div class="tbl-w"><table class="tbl"><thead><tr><th>${esc(t('yr'))}</th><th>${esc(t('crop'))}</th><th>${esc(t('sow'))}</th><th>${esc(t('harvest'))}</th><th>${esc(t('exp_yield'))}</th><th>${esc(t('m_fert'))} <small>(${U.kgL})</small></th><th>${esc(t('m_irr'))} <small>(${U.mmL})</small></th><th>${esc(t('m_fail'))}</th><th>${esc(t('then'))}</th></tr></thead>
+    <tbody>${r.years.map((y, i) => `<tr><td>${i + 1}</td><td>${CROP[y.id].ic} ${esc(cropLabel(y.id, y.v))}</td><td>${monthName(y.plant)}</td><td>${monthName(y.harv)}</td><td>${U.n(U.tha(y.yield), 1)} ${U.thaL}</td><td>${U.n(U.kg(y.fert))}</td><td>${U.n(U.mm(y.irr))}</td><td>${Math.round(y.pFail * 100)}%</td><td>${y.sec.id ? `${CROP[y.sec.id].ic} ${esc(cropName(y.sec.id))} <small>(${esc(t(y.sec.type))}, ${monthName(y.sec.start)}–${monthName(y.sec.end)})</small>` : esc(t(y.sec.type === 'none' ? 'none' : 'fallow'))}</td></tr>`).join('')}</tbody></table></div>${hint('hint_table')}
   </section>
   <p class="muted small">${esc(t('disclaimer'))}</p>`;
 }
@@ -987,7 +1010,7 @@ function reportSheet(preset) {
     <div class="rep-secs">${REP_SECTIONS.map((k) => `<label class="tog"><input type="checkbox" data-rsec="${k}" ${repOpt.sec[k] ? 'checked' : ''}> ${esc(t('sec_' + k))}</label>`).join('')}</div>
     <div class="form">
       <label for="repPlan">${esc(t('rep_plan'))}</label><select id="repPlan">${planList().map(([k, l]) => `<option value="${k}" ${String(repOpt.plan) === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
-      <label for="repN">${esc(t('rep_n'))}</label><select id="repN">${[1, 2, 3, 4, 5, 6].map((n) => `<option ${repOpt.n === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      <label for="repN">${defn(t('rep_n'), 'rep_n_hint')}</label><select id="repN">${[1, 2, 3, 4, 5, 6].map((n) => `<option ${repOpt.n === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
     </div></div>
   <div class="row wrap gap"><button class="btn primary" data-act="repPrint">🖨️ ${esc(t('rep_print'))}</button><button class="btn" data-act="repCSV">📊 ${esc(t('rep_csv'))}</button><button class="btn" data-act="repJSON">{ } ${esc(t('rep_json'))}</button></div>`);
   const p = $('#sheet');
@@ -1093,7 +1116,7 @@ function renderLab() {
   v.innerHTML = `
   <div class="head"><h1>${esc(t('lab_title'))}</h1><p class="muted">${esc(t('lab_sub'))}</p></div>
   <article class="card">
-    <h2>🧩 ${esc(t('builder'))}</h2><p class="muted small">${esc(t('builder_sub'))}</p>
+    <h2>🧩 ${esc(t('builder'))}</h2><p class="muted small">${esc(t('builder_sub'))}</p>${help('hint_then', 'hint_auto')}
     <div class="builder">${B.seq.map((id, i) => `<div class="bslot" style="--c:${famColor(id)}"><span class="eyebrow">${esc(t('yr'))} ${i + 1}</span>
       <select data-b="seq" data-i="${i}" aria-label="${esc(t('crop'))}">${MAIN_CROPS.map((c) => `<option value="${c.id}" ${c.id === id ? 'selected' : ''}>${c.ic} ${esc(cropName(c.id))}</option>`).join('')}</select>
       <small>${esc(t('then'))}</small><select data-b="sec" data-i="${i}" aria-label="${esc(t('then'))}">${secOpts(B.sec[i] || 'auto')}</select>
@@ -1102,14 +1125,14 @@ function renderLab() {
     <div id="customOut">${custom ? customHTML() : `<div class="skel"></div>`}</div>
   </article>
   <article class="card">
-    <h2>📊 ${esc(t('suit_title'))}</h2>
-    <div class="chips">${types.map((k) => `<button class="chip ${labFilter === k ? 'on' : ''}" data-act="labF" data-k="${k}">${k === 'all' ? '★' : esc(t('type_' + k))}</button>`).join('')}</div>
+    <h2>📊 ${esc(t('suit_title'))}</h2>${help('h_suit', 'hint_months', 'gl_suit', 'gl_limit', 'gl_variety')}
+    <div class="chips">${types.map((k) => `<button class="chip ${labFilter === k ? 'on' : ''}" data-act="labF" data-k="${k}">${k === 'all' ? esc(t('all_crops')) : esc(t('type_' + k))}</button>`).join('')}</div>
     <div class="suit">${rows.map((s) => { const [bk, col] = band(s.S); const c = CROP[s.id]; return `
       <details class="srow"><summary><span class="s-n">${c.ic} ${esc(cropLabel(s.id, s.v))}</span><span class="s-bar"><i style="width:${Math.round(s.S * 100)}%;background:${col}"></i></span><span class="s-v">${Math.round(s.S * 100)}</span>
         <span class="s-m">${s.plant != null ? `${monthName(s.plant)}–${monthName(s.harv)}` : ''} ${s.limit ? `· ${esc(t('limit_by'))} ${esc(t('lim_' + s.limit))}` : `· ${esc(t(bk))}`}${s.pFail > 0.1 ? ` · ⚠️ ${esc(t('fails_in', { pct: Math.round(s.pFail * 100) }))}` : ''}</span></summary>
         <div class="s-d">
-          ${s.comps ? `<div class="comps">${Object.entries(s.comps).map(([k, x]) => `<span class="${x < 0.7 ? 'lo' : ''}">${esc(t('lim_' + k))} <b>${Math.round(x * 100)}</b></span>`).join('')}</div>` : ''}
-          <p class="small muted">${esc(t(FAMILIES[c.fam]?.key || 'fam_other'))} · ${esc(t('type_' + c.type))}${c.nfix ? ` · N ${c.nfix} kg/ha` : ''} · ${esc(t('exp_yield'))} ${s.yield ? `${U.n(U.tha(s.yield), 1)} ${U.thaL}` : '—'}</p>
+          ${s.comps ? `${hint('hint_factors')}<div class="comps">${Object.entries(s.comps).map(([k, x]) => `<span class="${x < 0.7 ? 'lo' : ''}">${esc(t('lim_' + k))} <b>${Math.round(x * 100)}</b></span>`).join('')}</div>` : ''}
+          <p class="small muted">${esc(t(FAMILIES[c.fam]?.key || 'fam_other'))} · ${esc(t('type_' + c.type))}${c.nfix ? ` · ${esc(t('adds_n', { n: c.nfix }))}` : ''}${c.cover ? '' : ` · ${esc(t('exp_yield'))} ${s.yield ? `${U.n(U.tha(s.yield), 1)} ${U.thaL}` : '—'}`}</p>
           ${!c.cover ? `<div class="fields">
             <label class="numf"><span>${esc(t('yield_local'))}</span><span class="numw"><input type="number" step="0.1" min="0" value="${S.overrides[c.id]?.yld ?? c.yld}" data-ov="yld" data-id="${c.id}"></span></label>
             <label class="numf"><span>${esc(t('gm_local'))}</span><span class="numw"><input type="number" step="10" value="${S.overrides[c.id]?.gm ?? c.gm}" data-ov="gm" data-id="${c.id}"></span></label></div>` : ''}
@@ -1137,7 +1160,7 @@ function customHTML() {
   const rows = SC_KEYS.map((k) => ({ label: t('p_' + k), vals: [r.scores[k], b?.scores[k], top?.scores[k]].filter((x) => x != null) }));
   const names = [t('builder'), ...(b ? [t('your_current')] : []), ...(top ? [`#1 ★ ${t('best')}`] : [])];
   return `<div class="pc-top"><div class="pc-w">${CH.wheel(r, 90, false)}</div><div class="pc-t"><div class="seq">${planTitle(r)}</div></div>${CH.donut(r.total, 60)}</div>
-    ${metricsRow(r, b)}${CH.compareBars(rows, names)}
+    ${metricsRow(r, b)}${CH.compareBars(rows, names)}${help('h_compare')}
     <div class="row gap"><button class="btn sm" data-act="openCustom">${esc(t('details'))} →</button></div>`;
 }
 
@@ -1161,9 +1184,16 @@ function renderAbout() {
 // ---------------- Feature guide ----------------
 const GUIDE_IC = ["🌍", "🧭", "🟤", "🚜", "🛰️", "🌧️", "📈", "🌿", "🗺️", "🎯", "🔄", "🔭", "🎡", "⏳", "✅", "💬", "🧪", "📲", "⚙️"];
 const GUIDE_TAB = ['farm', 'farm', 'farm', 'farm', 'climate', 'climate', 'climate', 'climate', 'climate', 'goals', 'plans', 'plans', 'plans', 'plans', 'plans', 'plans', 'lab', null, null];
+const GLOSSARY = ['gl_score', 'gl_suit', 'gl_limit', 'gl_variety', 'gl_soc', 'gl_ero', 'gl_fert', 'gl_irr', 'gl_gm', 'gl_p10', 'gl_fail', 'gl_co2', 'gl_living', 'gl_cover', 'gl_fallow', 'gl_double', 'gl_legume', 'gl_lens', 'gl_et0', 'gl_arid', 'gl_cv', 'gl_dry', 'gl_warm', 'gl_seasons', 'gl_soilw', 'gl_ndvi', 'gl_zone', 'gl_tc', 'gl_kgn', 'gl_rhizo', 'gl_pts', 'gl_units'];
 function guideHTML() {
   return `<div class="sh-head"><h2>❓ ${esc(t('guide_title'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
   <p class="muted">${esc(t('guide_sub'))}</p>
+  <details class="card flat colour-guide"><summary><h3>📖 ${esc(t('glossary'))}</h3></summary>
+    <dl>${GLOSSARY.map((k) => { const [term, ...rest] = t(k).split(': '); return `<dt>${esc(term)}</dt><dd>${esc(rest.join(': ') || term)}</dd>`; }).join('')}</dl>
+  </details>
+  <details class="card flat colour-guide"><summary><h3>🎨 ${esc(t('legend_title'))}</h3></summary>
+    <dl>${[['ch_rain', 'h_rain'], ['ch_temp', 'h_temp'], ['sec_climate', 'h_trend'], ['shift_title', 'h_shift'], ['ndvi_title', 'h_ndvi'], ['now_title', 'h_now'], ['plans_title', 'h_scores'], ['vs_current', 'h_arrows'], ['sec_compare', 'h_summary'], ['wheel', 'h_wheel'], ['calendar', 'h_calendar'], ['score_vs', 'h_compare'], ['soc_chart', 'h_soc'], ['sec_tm', 'h_tm'], ['suit_title', 'h_suit'], ['soil_title', 'h_soil']].map(([a, b2]) => `<dt>${esc(t(a))}</dt><dd>${esc(t(b2))}</dd>`).join('')}</dl>
+  </details>
   <div class="guide">${GUIDE_IC.map((ic, i) => `<button class="g-item" data-act="guideGo" data-i="${i}"><span class="g-ic">${ic}</span><span><b>${esc(t(`g${i + 1}_t`))}</b><small>${esc(t(`g${i + 1}_d`))}</small><em>📍 ${esc(t('where'))}: ${esc(t(`g${i + 1}_w`))}</em></span></button>`).join('')}</div>`;
 }
 
@@ -1172,17 +1202,48 @@ function settingsHTML() {
   const seg = (k, opts) => `<div class="seg">${opts.map(([v, l]) => `<button role="radio" aria-checked="${String(S[k]) === String(v)}" data-act="pref" data-k="${k}" data-v="${v}">${esc(l)}</button>`).join('')}</div>`;
   return `<div class="sh-head"><h2>${esc(t('settings'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
   <div class="form">
-    <label>${esc(t('units'))}</label>${seg('units', [['metric', t('metric')], ['imperial', t('imperial')]])}
-    <label>${esc(t('theme'))}</label>${seg('theme', [['auto', t('th_auto')], ['light', t('th_light')], ['dark', t('th_dark')]])}
+    <label>${esc(t('units'))}</label><div>${seg('units', [['metric', t('metric')], ['imperial', t('imperial')]])}${hint('set_units')}</div>
+    <label>${esc(t('theme'))}</label><div>${seg('theme', [['auto', t('th_auto')], ['light', t('th_light')], ['dark', t('th_dark')]])}${hint('set_theme')}</div>
     <label>${esc(t('text_size'))}</label>${seg('fs', [[0.9, 'A−'], [1, 'A'], [1.15, 'A+'], [1.3, 'A++']])}
   </div>
   <div class="row wrap gap">
     ${canOfferInstall() ? `<button class="btn primary" data-act="install">⬇ ${esc(t('install'))}</button>` : `<span class="pill">${esc(t('installed'))}</span>`}
     <button class="btn" data-act="about">ℹ️ ${esc(t('about'))}</button>
-    <button class="btn ghost" data-act="resetAll">↺ ${esc(t('reset'))}</button>
+    <a class="btn ghost" href="?reset">↺ ${esc(t('clean_start'))}</a>
   </div>
-  <p class="muted small">FieldShift ${APP_VERSION} · <button class="link" data-act="diag">${esc(t('diag_title'))}</button> · <a href="?reset">${esc(t('clean_start'))}</a></p>`;
+  <h3>✈ ${esc(t('off_title'))}</h3><div class="offline-slot" data-sheet="1">${offlineCard(true)}</div>
+  ${hint('set_clean')}<p class="muted small">FieldShift ${APP_VERSION} · <button class="link" data-act="diag">${esc(t('diag_title'))}</button></p>`;
 }
+// ---------------- Offline & airplane mode ----------------
+let offline = { n: 0, total: 0, busy: false, unsupported: !('serviceWorker' in navigator) };
+const offPct = () => (offline.total ? Math.round((100 * offline.n) / offline.total) : 0);
+const offReady = () => offline.total > 0 && offline.n >= offline.total;
+function offBadge() {
+  const st = offReady() ? 'ok' : offline.busy ? 'busy' : 'no';
+  const txt = offReady() ? t('off_ready') : offline.busy ? t('off_partial', { pct: offPct() }) : t('off_none');
+  return `<button class="off-badge ${st}" data-act="offline" title="${esc(t('off_title'))}: ${esc(txt)}" aria-label="${esc(t('off_title'))}: ${esc(txt)}"><span aria-hidden="true">✈</span><span class="ob-t">${esc(txt)}</span></button>`;
+}
+function offlineCard(inSheet = false) {
+  const pct = offPct(), ready = offReady();
+  return `<section class="card offline-card ${ready ? 'ready' : ''}" id="offlineCard">
+    ${inSheet ? '' : `<h2>✈ ${esc(t('off_title'))}</h2>`}
+    <div class="off-status"><b>${esc(ready ? t('off_ready') : offline.busy ? t('off_partial', { pct }) : t('off_none'))}</b>
+      <div class="off-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${ready ? 100 : pct}%"></i></div>
+      <small class="muted">${esc(t('off_count', { n: offline.n, total: offline.total || '…' }))}</small></div>
+    <p>${esc(t('off_desc'))}</p>
+    <p class="off-steps">${esc(t('off_steps'))}</p>
+    <div class="row wrap gap">
+      ${ready ? `<span class="pill ok-pill">${esc(t('off_ready'))}</span>` : `<button class="btn primary" data-act="offlineSave" ${offline.busy || !navigator.onLine ? 'disabled' : ''}>⬇ ${esc(t('off_btn'))}</button>`}
+      ${canOfferInstall() ? `<button class="install-btn" data-act="install"><span class="ib-ic">⬇</span><span class="ib-t">${esc(t('install'))}</span></button>` : `<span class="pill">${esc(t('installed'))}</span>`}
+    </div>
+    <p class="hint">${esc(t('off_note'))}</p>
+  </section>`;
+}
+function updateOffline() {
+  const b = $('#offBadge'); if (b) b.innerHTML = offBadge();
+  $$('.offline-slot').forEach((el) => (el.innerHTML = offlineCard(el.dataset.sheet === '1')));
+}
+
 // ---------------- Install as an app (Android, iPhone, desktop) ----------------
 let deferredInstall = null;
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -1216,7 +1277,7 @@ async function loadLeaflet() {
   L = window.L; return L;
 }
 async function openMap() {
-  sheet(`<div class="sh-head"><h2>🗺️ ${esc(t('pick_map'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div><div id="map" class="map"><div class="spin"></div></div><div id="mapPick" class="row gap wrap"></div>`);
+  sheet(`<div class="sh-head"><h2>🗺️ ${esc(t('pick_map'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div><p class="hint">${esc(t('map_tap'))}</p><div id="map" class="map"><div class="spin"></div></div><p class="hint">${esc(t('map_key'))}</p><div id="mapPick" class="row gap wrap"></div>`);
   try { await loadLeaflet(); } catch { $('#map').innerHTML = `<p class="note warn">${esc(t('offline'))}</p>`; return; }
   const c = S.farm ? [S.farm.lat, S.farm.lon] : [15, 10];
   const m = L.map('map', { zoomControl: true, worldCopyJump: true }).setView(c, S.farm ? 10 : 2);
@@ -1361,6 +1422,8 @@ const ACT = {
   pref: async (a) => { const k = a.dataset.k; S[k] = k === 'fs' ? +a.dataset.v : a.dataset.v; save(); applyPrefs(); go(S.tab, true); sheet(settingsHTML()); },
   about: () => { closeSheet(); go('about'); },
   install: () => install(),
+  offline: () => { sheet(`<div class="sh-head"><h2>✈ ${esc(t('off_title'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div><div class="offline-slot" data-sheet="1">${offlineCard(true)}</div>`); navigator.serviceWorker?.controller?.postMessage('offline-status'); },
+  offlineSave: async () => { offline.busy = true; updateOffline(); const reg = await navigator.serviceWorker?.ready; reg?.active?.postMessage('offline-pack'); },
   guide: () => sheet(guideHTML()),
   guideGo: (a) => {
     const i = +a.dataset.i, tab = GUIDE_TAB[i];
@@ -1368,12 +1431,6 @@ const ACT = {
     if (i === 17) return install();
     if (i === 18) return sheet(settingsHTML());
     if (tab) go(tab);
-  },
-  resetAll: async () => {
-    try { localStorage.removeItem('fs-state'); sessionStorage.removeItem('fs-healed'); } catch { /* */ }
-    try { for (const k of await caches.keys()) await caches.delete(k); } catch { /* */ }
-    try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch { /* */ }
-    location.reload();
   },
 };
 

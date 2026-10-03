@@ -238,7 +238,7 @@ select { border: 1px solid var(--line); border-radius: 10px; background: var(--s
 .mets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin: .5rem 0; }
 .plan .mets, .baseline .mets { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
 .plan .met, .baseline .met { padding: .35rem .5rem; font-size: .85rem; }
-.plan .met small, .baseline .met small { display: none; }
+.plan .met small, .baseline .met small { font-size: .66rem; }
 .met { background: var(--surface2); border-radius: 10px; padding: .45rem .6rem; display: flex; flex-direction: column; font-size: .9rem; min-width: 0; }
 .met > span { font-size: .74rem; color: var(--muted); }
 .met em { font-style: normal; font-size: .76rem; font-weight: 650; }
@@ -387,3 +387,42 @@ body.is-offline .top::after { content: "✈"; position: absolute; right: 6px; bo
 /* right-to-left: numbers with units keep their own direction */
 [dir="rtl"] :is(.kpi b, .met b, .met small, .met em, .sum-k b, .now-k b, .now-k small, .mini b, output, .s-v, .sh-v, .cb-bar b, .tbl td, .pill) { unicode-bidi: plaintext; }
 .cb-keyed { margin-top: .5rem; }
+/* "What do the colours mean?" explanations */
+.help { margin: .5rem 0 0; font-size: .86rem; }
+.help summary { cursor: pointer; color: var(--accent); font-weight: 600; list-style: none; display: inline-flex; gap: .35rem; align-items: center; min-height: 32px; }
+.help summary::-webkit-details-marker { display: none; }
+.help[open] summary { color: var(--ink2); }
+.help p { margin: .3rem 0 0; background: var(--surface2); border-radius: 10px; padding: .55rem .7rem; color: var(--ink); line-height: 1.45; }
+.summary .help summary { color: #ffe08a; }
+.summary .help p { background: rgba(255,255,255,.12); color: #fff; }
+.center .legend { justify-content: center; }
+.colour-guide { margin: .4rem 0 .8rem; }
+.colour-guide summary { cursor: pointer; list-style: none; }
+.colour-guide summary h3 { display: inline; }
+.colour-guide dl { margin: .5rem 0 0; display: grid; gap: .5rem; }
+.colour-guide dt { font-weight: 700; font-size: .88rem; }
+.colour-guide dd { margin: 0; font-size: .86rem; color: var(--ink2); }
+/* terms with a definition: dotted underline, tap/hover shows the meaning */
+.def { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.def sup { font-size: .65em; margin-inline-start: 2px; opacity: .75; text-decoration: none; display: inline-block; }
+.def:focus-visible { outline: 2px solid var(--s1); border-radius: 4px; }
+.hint { margin: .25rem 0 .2rem; font-size: .8rem; color: var(--muted); line-height: 1.4; }
+.form .hint.span { grid-column: 1 / -1; margin-top: -.2rem; }
+.hints { margin: .2rem 0 .4rem; padding-inline-start: 1.1rem; font-size: .8rem; color: var(--muted); }
+.numf small { font-size: .74rem; line-height: 1.35; }
+/* offline & airplane mode */
+.off-badge { display: inline-flex; align-items: center; gap: .3rem; min-height: 34px; padding: .15rem .65rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface2); color: var(--ink2); font-size: .8rem; font-weight: 650; white-space: nowrap; }
+.off-badge.ok { background: color-mix(in srgb, var(--good) 16%, var(--surface)); border-color: color-mix(in srgb, var(--good) 55%, transparent); color: var(--up); }
+.off-badge.busy { background: color-mix(in srgb, var(--warn) 20%, var(--surface)); border-color: var(--warn); color: var(--ink); }
+@media (max-width: 760px) { .off-badge .ob-t { display: none; } .off-badge { padding: .15rem .55rem; } }
+.offline-card { text-align: start; border: 2px solid color-mix(in srgb, var(--s1) 35%, var(--line)); margin: 1rem 0; }
+.offline-card.ready { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); }
+.off-status { display: grid; gap: .3rem; margin: .2rem 0 .6rem; }
+.off-bar { height: 10px; border-radius: 6px; background: var(--track); overflow: hidden; }
+.off-bar i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--s1), var(--good)); transition: width .3s; }
+.off-steps { font-weight: 600; }
+.sheet .offline-card { margin: .4rem 0; box-shadow: none; }
+.offline-card .install-btn .ib-t { display: inline; }
+.offline-card .install-btn { padding: .2rem .85rem .2rem .25rem; }
+.ok-pill { background: color-mix(in srgb, var(--good) 18%, var(--surface)); color: var(--up); font-size: .9rem; padding: .45rem .9rem; }
+.btn[disabled] { opacity: .55; cursor: not-allowed; }

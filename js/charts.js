@@ -1,7 +1,7 @@
 // Tiny dependency-free SVG chart kit. Every chart returns an SVG/HTML string;
 // tooltips are driven by data-tip attributes (see bindTips).
-import { famColor, CROP } from './crops.js?v=1.11.1';
-import { cropName, cropLabel, monthName, t } from './i18n.js?v=1.11.1';
+import { famColor, CROP } from './crops.js?v=1.12.0';
+import { cropName, cropLabel, monthName, t } from './i18n.js?v=1.12.0';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // charts are drawn at the on-screen pixel width so text stays legible on phones
@@ -96,7 +96,7 @@ export function ndviChart(pts) {
   const ys = (v) => H - P.b - v * (H - P.t - P.b);
   const xl = [];
   let last = '';
-  pts.forEach((p, i) => { const k = p.d.slice(0, 7); if (k !== last && (+p.d.slice(5, 7)) % (W < 450 ? 6 : 3) === 1) { xl.push([xs(ts[i]), `${monthName(+p.d.slice(5, 7) - 1)} ${p.d.slice(2, 4)}`]); } last = k; });
+  pts.forEach((p, i) => { const k = p.d.slice(0, 7); if (k !== last && (+p.d.slice(5, 7)) % (W < 450 ? 6 : 3) === 1) { xl.push([xs(ts[i]), `${monthName(+p.d.slice(5, 7) - 1)} ${p.d.slice(0, 4)}`]); } last = k; });
   let s = `<svg viewBox="0 0 ${W} ${H}" class="chart">` + frame(W, H, P, yt, ys, xl, 'NDVI');
   const line = pts.map((p, i) => `${xs(ts[i])},${ys(Math.max(0, p.v))}`).join(' ');
   s += `<polygon points="${xs(x0)},${ys(0)} ${line} ${xs(x1)},${ys(0)}" fill="var(--s3)" opacity=".18"/><polyline points="${line}" fill="none" stroke="var(--s3)" stroke-width="2.5"/>`;
@@ -269,7 +269,16 @@ export function bindTips(root = document) {
   root.addEventListener('pointerleave', () => { tip.hidden = true; });
   root.addEventListener('click', (e) => {
     const el = e.target.closest?.('[data-tip]');
-    if (el && e.pointerType !== 'mouse') show(el, e.clientX, e.clientY);
+    if (el && e.pointerType !== 'mouse') { show(el, e.clientX, e.clientY); cur = el; }
+    else if (!el) { tip.hidden = true; cur = null; } // tapping elsewhere closes it
   });
+  // keyboard: a focused definition shows its meaning next to it
+  root.addEventListener('focusin', (e) => {
+    const el = e.target.closest?.('.def[data-tip]');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    show(el, r.left, r.top);
+  });
+  root.addEventListener('focusout', (e) => { if (e.target.closest?.('.def[data-tip]')) tip.hidden = true; });
   window.addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
 }
