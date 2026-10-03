@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.0';
-import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.0';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.0';
-import * as CH from './charts.js?v=1.9.0';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.1';
+import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.1';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.1';
+import * as CH from './charts.js?v=1.9.1';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.9.0';
+export const APP_VERSION = '1.9.1';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
@@ -121,7 +121,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js?v=1.9.0', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.9.1', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -138,7 +138,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js?v=1.9.0');
+  engineMod = engineMod || await import('./engine.js?v=1.9.1');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
@@ -153,6 +153,7 @@ function inputs() {
 // ---------------- Boot ----------------
 async function boot() {
   window.__fsBooted = true;
+  if (window.__fsErr?.length) setTimeout(() => window.__fsShowErr(), 500);
   if (!S.lang) S.lang = guessLang();
   await setLang(S.lang);
   applyPrefs();
@@ -246,6 +247,7 @@ function go(tab) {
     ({ farm: renderFarm, climate: renderClimate, goals: renderGoals, plans: renderPlans, lab: renderLab, about: renderAbout })[tab]?.();
   } catch (err) {
     console.error(err);
+    window.__fsErr?.push('render ' + tab + ': ' + String(err?.stack || err).split('\n').slice(0, 2).join(' ')); window.__fsShowErr?.();
     if (err instanceof TypeError) heal(); // mismatched cached files: fetch a clean copy
     else $('#v-' + tab).innerHTML = `<p class="note warn">⚠️ ${esc(err.message)}</p>`;
   }
@@ -273,11 +275,29 @@ function bindGlobal() {
 // any unexpected error: tell the user briefly, recover stale code if that is the cause
 function fail(err) {
   console.error(err);
+  window.__fsErr?.push(String(err?.stack || err).split('\n').slice(0, 2).join(' ')); window.__fsShowErr?.();
   busy(null);
   if (err instanceof TypeError && /is not a function|does not provide/.test(err.message)) heal();
   else toast('⚠️ ' + (err?.message || err), 5000);
 }
 window.addEventListener('unhandledrejection', (e) => { if (/does not provide|Failed to fetch dynamically|Importing a module/.test(String(e.reason))) heal(); });
+
+// ---------------- Diagnostics badge ----------------
+window.__fsShowErr = () => {
+  let b = document.getElementById('diag');
+  if (!b) { b = document.createElement('button'); b.id = 'diag'; b.className = 'diag'; b.onclick = showDiag; document.body.append(b); }
+  b.textContent = `⚠️ ${window.__fsErr.length}`;
+};
+async function showDiag() {
+  let sw = 'none', cks = [];
+  try { const r = await navigator.serviceWorker?.getRegistration(); sw = r ? `${r.active?.scriptURL?.replace(/^.*\//, '') || '?'} (${r.active?.state || 'no active'})${navigator.serviceWorker.controller ? ' controlling' : ''}` : 'not registered'; } catch { /* */ }
+  try { cks = await caches.keys(); } catch { /* */ }
+  const info = [`FieldShift ${APP_VERSION}`, `URL: ${location.href}`, `Browser: ${navigator.userAgent}`, `Screen: ${innerWidth}x${innerHeight} @${devicePixelRatio}`, `Service worker: ${sw}`, `Caches: ${cks.join(', ')}`, `Worker: ${worker ? 'module worker' : 'main thread'}`, `Tab: ${S.tab} · farm: ${S.farm ? 'yes' : 'no'} · lang: ${S.lang}`, '--- errors ---', ...(window.__fsErr || []).slice(-15)].join('\n');
+  sheet(`<div class="sh-head"><h2>⚠️ Diagnostics</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
+    <pre class="diag-pre">${esc(info)}</pre>
+    <div class="row wrap gap"><button class="btn primary" id="diagCopy">📋 Copy</button><a class="btn" href="?reset">↺ Clean start</a></div>`);
+  $('#diagCopy').onclick = () => navigator.clipboard?.writeText(info).then(() => toast(t('copied')), () => prompt('Copy', info));
+}
 
 // ---------------- Busy / toast ----------------
 function busy(msg) { const b = $('#busy'); if (!b) return; b.hidden = !msg; if (msg) $('#busyMsg').textContent = msg; }
@@ -1084,7 +1104,7 @@ function settingsHTML() {
     <button class="btn" data-act="about">ℹ️ ${esc(t('about'))}</button>
     <button class="btn ghost" data-act="resetAll">↺ ${esc(t('reset'))}</button>
   </div>
-  <p class="muted small">FieldShift ${APP_VERSION}</p>`;
+  <p class="muted small">FieldShift ${APP_VERSION} · <button class="link" data-act="diag">Diagnostics</button> · <a href="?reset">Clean start</a></p>`;
 }
 // ---------------- Install as an app (Android, iPhone, desktop) ----------------
 let deferredInstall = null;
@@ -1228,6 +1248,7 @@ const ACT = {
   closeSheet: () => closeSheet(),
   ics: () => openPlan && downloadICS(openPlan),
   report: () => reportSheet(),
+  diag: () => showDiag(),
   reportOpen: () => { const i = openPlan?._i; reportSheet(i >= 0 ? i : i === -1 ? 'cur' : i === -2 ? 'custom' : 0); },
   repPrint: () => { closeSheet(); printReport(); },
   repCSV: () => reportCSV(),

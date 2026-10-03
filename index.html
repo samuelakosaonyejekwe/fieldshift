@@ -22,8 +22,8 @@
 <meta name="application-name" content="FieldShift">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://power.larc.nasa.gov" crossorigin>
-<link rel="modulepreload" href="js/app.js?v=1.9.0">
-<link rel="stylesheet" href="css/app.css?v=1.9.0">
+<link rel="modulepreload" href="js/app.js?v=1.9.1">
+<link rel="stylesheet" href="css/app.css?v=1.9.1">
 </head>
 <body>
 <div id="app">
@@ -31,7 +31,23 @@
 </div>
 <div id="tip" class="tip" hidden role="tooltip"></div>
 <noscript><p style="padding:2rem;font-family:sans-serif">FieldShift needs JavaScript enabled.</p></noscript>
-<script type="module" src="js/app.js?v=1.9.0"></script>
+<script>
+// Diagnostics: collect errors from the very first moment (shown via the ⚠️ badge).
+window.__fsErr = [];
+window.addEventListener('error', function (e) { window.__fsErr.push((e.message || 'error') + (e.filename ? ' @' + e.filename.replace(/^.*\//, '') + ':' + e.lineno : '')); if (window.__fsShowErr) window.__fsShowErr(); }, true);
+window.addEventListener('unhandledrejection', function (e) { window.__fsErr.push('promise: ' + (e.reason && (e.reason.message || e.reason))); if (window.__fsShowErr) window.__fsShowErr(); });
+// Clean start: open …/fieldshift/?reset to wipe this app's storage, caches and service worker, then reload fresh.
+if (/[?&]reset\b/.test(location.search)) {
+  try { Object.keys(localStorage).forEach(function (k) { if (/^fs-/.test(k)) localStorage.removeItem(k); }); sessionStorage.clear(); } catch (e) {}
+  var go = function () { location.replace(location.pathname); };
+  var jobs = [];
+  if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+  if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+  Promise.all(jobs).then(go, go);
+  document.write('<p style="font:16px sans-serif;padding:2rem">Resetting FieldShift…</p>');
+}
+</script>
+<script type="module" src="js/app.js?v=1.9.1"></script>
 <script>
 // Self-heal: if the app has not started after 10 s (e.g. stale or mismatched cached files), clear caches once and reload.
 setTimeout(function () {

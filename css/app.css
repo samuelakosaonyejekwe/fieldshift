@@ -368,3 +368,6 @@ body.is-offline .top::after { content: "✈"; position: absolute; right: 6px; bo
 #report .tbl.cmp { min-width: 0; table-layout: auto; }
 #report .tbl.cmp th, #report .tbl.cmp td { padding: .25rem .2rem; font-size: .72rem; }
 #report .tbl.cmp th { font-size: .62rem; letter-spacing: 0; }
+.diag { position: fixed; left: 12px; bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom)); z-index: 95; background: var(--bad); color: #fff; border: 0; border-radius: 999px; padding: .35rem .8rem; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+@media (min-width: 900px) { .diag { bottom: 16px; } }
+.diag-pre { white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .8rem; font-size: .78rem; max-height: 50vh; overflow: auto; }

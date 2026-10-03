@@ -1,7 +1,7 @@
 // Tiny dependency-free SVG chart kit. Every chart returns an SVG/HTML string;
 // tooltips are driven by data-tip attributes (see bindTips).
-import { famColor, CROP } from './crops.js?v=1.9.0';
-import { cropName, monthName, t } from './i18n.js?v=1.9.0';
+import { famColor, CROP } from './crops.js?v=1.9.1';
+import { cropName, monthName, t } from './i18n.js?v=1.9.1';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // charts are drawn at the on-screen pixel width so text stays legible on phones
