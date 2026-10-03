@@ -14,7 +14,11 @@ Pick a field (search, GPS, map or demo farm) → FieldShift pulls 30 years of NA
 - **Holistic 20-year simulation** — soil organic carbon, RUSLE erosion with NASA-derived rainfall erosivity, nitrogen budget with legume credits, irrigation demand, nitrate-leaching exposure, margins, bad-year income, greenhouse-gas balance and pest/disease breaks.
 - **Farmer-weighted** — sliders for soil health, water, income, resilience and simplicity; must-include / never-grow crops; local yields and prices.
 - **Explains itself** — plain-language reasons for every plan, read aloud in the farmer's language, shareable by link or WhatsApp, printable as a report.
-- **Runs everywhere** — no server, no sign-up, no framework; ~100 KB of app code, installable PWA, works offline, 6 languages (English, Español, Français, Português, Kiswahili, हिन्दी), metric/imperial, light/dark, adjustable text size.
+- **Season so far** — the last 90 days of NASA POWER near-real-time data versus normal, with advice for the current season.
+- **Practical action plan** — month-by-month tasks (sow, inoculate, fertilise, irrigate, cover crop, harvest) exportable to any phone calendar.
+- **Runs everywhere, for everyone** — no server, no sign-up, no framework; ~60 KB gzipped; installable on Android, iPhone/iPad and desktop; works offline and in airplane mode (23 demo farms pre-cached); NASA data refreshes automatically when online.
+- **26 languages** — English, 中文, हिन्दी, Español, Français, العربية, বাংলা, Português, Русский, اردو, Bahasa Indonesia, Deutsch, 日本語, Kiswahili, मराठी, తెలుగు, Türkçe, தமிழ், Tiếng Việt, فارسی, Hausa, ਪੰਜਾਬੀ, Italiano, Yorùbá, Igbo, አማርኛ — with right-to-left layouts and a warm baritone read-aloud voice.
+- **In-app guide** (❓ in the top bar) lists every feature and where to find it.
 
 ## NASA & open data used
 | Source | Used for |
