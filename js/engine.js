@@ -1,7 +1,7 @@
 // FieldShift rotation engine.
 // Pure functions: climate (NASA POWER) + soil + farmer inputs -> ranked rotations.
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS } from './crops.js?v=1.9.4';
-import { deriveClimate, climateInsights, textureClass, texGroup, awcOf, kFactor, DAYS, effRain } from './data.js?v=1.9.4';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS } from './crops.js?v=1.10.0';
+import { deriveClimate, climateInsights, textureClass, texGroup, awcOf, kFactor, DAYS, effRain, DEFAULT_SOIL } from './data.js?v=1.10.0';
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const mean = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
@@ -11,6 +11,8 @@ const TILL_K = { conventional: 1, reduced: 0.85, notill: 0.72 };
 const TILL_RES = { conventional: 0.12, reduced: 0.4, notill: 0.75 };
 const SAL = { none: 0, moderate: 0.5, high: 0.9 };
 export const N_CO2E = 8.5; // kg CO2e per kg synthetic N (manufacture + field N2O)
+// margin scales used to make utilities comparable (USD/ha): gap choices and candidate-pool ranking
+const GAP_GM_SCALE = 1500, POOL_GM_SCALE = 900;
 const CRED = (c) => (c.cover ? 0.6 : c.per ? 0.5 : 0.3);
 
 // ---------------- Context ----------------
@@ -21,7 +23,7 @@ export function makeContext(base, inp, scen) {
   const pr = inp.practice;
   const slope = clamp(pr.slope ?? 2, 0, 60) / 100;
   const th = Math.atan(slope), lam = 60;
-  const mexp = slope > 0.05 ? 0.5 : slope > 0.03 ? 0.4 : slope > 0.01 ? 0.3 : 0.2;
+  const mexp = slope >= 0.05 ? 0.5 : slope >= 0.035 ? 0.4 : slope >= 0.01 ? 0.3 : 0.2; // Wischmeier & Smith (1978)
   const LS = Math.pow(lam / 22.13, mexp) * (65.41 * Math.sin(th) ** 2 + 4.56 * Math.sin(th) + 0.065);
   const ctx = {
     C, inp, soil: s, cls, grp: texGroup(cls), awc: awcOf(cls), K: kFactor(s.sand, s.silt, s.clay, s.soc), LS,
@@ -31,15 +33,7 @@ export function makeContext(base, inp, scen) {
     prices: { n: inp.prices?.n ?? 1.1, irr: inp.prices?.irr ?? 0.15 },
     ov: inp.overrides || {}, cache: new Map(),
   };
-  ctx.soc0 = Math.max(1, (s.soc || 1) * (s.bd || 1.3) * 30 * 0.1); // t C/ha in 0-30 cm
-  // erosion already embedded in today's soil (typical regional cropping, average cover factor ~0.35)
-  ctx.eroRef = C.norm.R.reduce((a, r) => a + r, 0) * ctx.K * ctx.LS * 0.35 * ctx.Pf;
-  const fT = clamp(2 ** ((C.Tann - 15) / 10), 0.25, 3);
-  const gw = mean(C.norm.GW);
-  const fW = (0.35 + 0.65 * clamp(C.aridity)) * (gw > 0.8 ? 0.8 : 1);
-  const fClay = clamp(1.25 - s.clay / 100, 0.7, 1.2);
-  ctx.kRaw = 0.014 * fT * fW * fClay; // replaced by equilibrium calibration in calibrateSOC()
-  ctx.minN = Math.min(140, ((ctx.soc0 * ctx.k * 1000) / 11) * 0.5 + ctx.manure * 8);
+  ctx.soc0 = Math.max(1, (s.soc || DEFAULT_SOIL.soc) * (s.bd || DEFAULT_SOIL.bd) * 30 * 0.1); // t C/ha in 0-30 cm
   ctx.soilF = {};
   for (const c of CROPS) ctx.soilF[c.id] = soilFit(c, ctx);
   calibrateSOC(ctx, base, inp);
@@ -50,7 +44,8 @@ export function makeContext(base, inp, scen) {
 // (best-suited cereal, half residue kept, conventional tillage, no cover crop) under the
 // baseline climate. Decomposition of the active pool (50%) is then scaled for tillage and warming.
 function calibrateSOC(ctx, base, inp) {
-  const rk = JSON.stringify([inp.soil, inp.practice?.irrigation, inp.practice?.drainage, inp.practice?.salinity]);
+  const pr = inp.practice || {};
+  const rk = JSON.stringify([inp.soil, pr.irrigation, pr.drainage, pr.salinity, pr.slope, pr.conservation]);
   base._ref = base._ref || new Map();
   const ref = base._ref.get(rk) || (() => {
     const bctx = ctx.C.dT || ctx.C.dP || ctx.C.from ? makeContext(base, inp, {}) : ctx;
@@ -63,13 +58,18 @@ function calibrateSOC(ctx, base, inp) {
     }
     const S = Math.max(0.3, best?.S ?? 0.5), c = best?.c ?? CROP.maize;
     const ag = c.res * S;
-    return { H: ag * 0.5 * 0.45 * 0.12 + ag * c.rs * 0.45 * 0.3, T: ctx.C.Tann };
+    // erosion of that same reference practice (conventional tillage, half the residue, fallow between crops)
+    const rctx = { ...ctx, till: 'conventional', retain: 0.5, cache: ctx.cache, stress: null, k: 0, active0: ctx.soc0 / 2, eroRef: 0, minN: 0 };
+    let ero = 0;
+    try { ero = evaluate([c.id], rctx, { w: weights({ soil: 1, water: 1, profit: 1, resil: 1, simple: 1 }) }, { sec: ['fallow'] })?.erosion || 0; } catch { ero = 0; }
+    return { H: ag * 0.5 * 0.45 * 0.12 + ag * c.rs * 0.45 * 0.3, T: ctx.C.Tann, ero };
   })();
   base._ref.set(rk, ref);
   ctx.ref = ref;
   const active = 0.5 * ctx.soc0;
   ctx.k = (ref.H / active) * TILL_K[ctx.till] * clamp(2 ** ((ctx.C.Tann - ref.T) / 10), 0.5, 2);
   ctx.active0 = active;
+  ctx.eroRef = ref.ero; // soil loss already embedded in today's measured soil carbon
   ctx.minN = Math.min(140, ((ctx.soc0 * 0.012 * clamp(2 ** ((ctx.C.Tann - 15) / 10), 0.4, 2.5) * 1000) / 11) * 0.5 + ctx.manure * 8);
 }
 
@@ -103,6 +103,8 @@ function trap(c, t) {
 }
 // frost a crop tolerates while actively growing (hardened winter types tolerate more)
 const activeThr = (c) => (c.fr >= -2 ? c.fr : Math.max(c.fr * 0.5, -10));
+// heat damage: monthly extreme above the crop's upper limit + 2 °C (same threshold for probabilities and replay)
+const heatThr = (c) => c.tx + 2;
 // humid-season foliar disease pressure (e.g. Ascochyta on chickpea)
 const humF = (c, rh) => 1 - c.hum * clamp((rh - 60) / 25);
 const kcAt = (c, f) => (f < 0.2 ? 0.5 : f < 0.75 ? c.kc : 0.75);
@@ -111,7 +113,7 @@ const kcAt = (c, f) => (f < 0.2 ? 0.5 : f < 0.75 ? c.kc : 0.75);
 // Simulate a crop from start month s for up to maxSpan months.
 // partial=true allows unfinished cover crops (biomass scales with GDD reached).
 function evalSpan(c, ctx, s, maxSpan, partial = false, gap = false) {
-  const { norm, pBelow, pAbove } = ctx.C;
+  const { norm, pBelow } = ctx.C;
   const need = c.gdd;
   const t0 = norm.T[s % 12];
   if (t0 < c.tb + 2 || t0 > c.tx + 1) return null;
@@ -122,11 +124,11 @@ function evalSpan(c, ctx, s, maxSpan, partial = false, gap = false) {
     const m = (s + i) % 12, t = norm.T[m];
     if (t < c.tb) {
       if (c.wk) { killed = true; months.push({ m, d: 1 }); break; }
-      if (!c.win || pBelow(m, c.fr) > 0.45 || ++dorm > 6) { if (partial && i > 0) break; return null; }
+      if (!c.win || pBelow(m, c.fr) > 0.45 || ++dorm > 6) { if (i > 0 && (partial || !c.cover)) break; return null; }
       months.push({ m, d: 1 });
       continue;
     }
-    if (t > c.tx + 3) { if (partial && i > 0) break; return null; }
+    if (t > c.tx + 3) { if (i > 0 && (partial || !c.cover)) break; return null; }
     gdd += (Math.min(t, c.to2) - c.tb) * DAYS[m];
     months.push({ m, d: 0 });
     if (gdd >= need) { done = true; break; }
@@ -138,7 +140,7 @@ function evalSpan(c, ctx, s, maxSpan, partial = false, gap = false) {
   // strip trailing dormant months (crop ends when last active month ends)
   while (months.length && months[months.length - 1].d && !killed) months.pop();
   const pl = scoreSpan(c, ctx, s, months, frac, killed, gap);
-  if (pl && early) { pl.S *= frac * frac; pl.early = true; }
+  if (pl && early) { pl.pen = frac * frac; pl.S *= pl.pen; pl.early = true; }
   return pl;
 }
 
@@ -153,7 +155,7 @@ function scoreSpan(c, ctx, s, months, frac = 1, killed = false, gap = false) {
     const w = i === 0 ? 0.5 : i === n - 1 ? 0.6 : 1;
     if (!(c.wk && x.d)) fr = Math.max(fr, w * pBelow(x.m, x.d ? c.fr : activeThr(c)));
     const f = (i + 0.5) / n;
-    if (!x.d && f > 0.3 && f < 0.85) hot = Math.max(hot, pAbove(x.m, c.tx + 2));
+    if (!x.d && f > 0.3 && f < 0.85) hot = Math.max(hot, pAbove(x.m, heatThr(c)));
     if (!x.d && norm.P[x.m] > 1.4 * norm.ET0[x.m] && norm.GW[x.m] > 0.7) wet++;
   });
   const frostF = 1 - 0.8 * fr;
@@ -183,21 +185,24 @@ function scoreSpan(c, ctx, s, months, frac = 1, killed = false, gap = false) {
 }
 
 // Replay a placement through every historical year of the NASA record.
+// Months are matched by calendar year (gaps in the record are skipped, never shifted);
+// each result is labelled with its harvest year.
 function history(c, ctx, pl) {
   const { S: Y, years } = ctx.C;
+  const idx = new Map(years.map((yr, i) => [yr, i]));
   const out = [];
   for (let y = 0; y < years.length; y++) {
     let ok = true, rh = 0, temp = 0, na = 0, demand = 0, supply = 0, frost = false, heat = false, dry = false;
     pl.months.forEach((x, i) => {
-      const yy = y + Math.floor((pl.s + i) / 12) - (pl.s >= 12 ? 1 : 0);
-      if (yy >= years.length) { ok = false; return; }
+      const yy = idx.get(years[y] + Math.floor((pl.s + i) / 12));
+      if (yy == null) { ok = false; return; }
       const T = Y.T[yy][x.m], f = (i + 0.5) / pl.n;
       if (!x.d) { temp += trap(c, T); na++; }
       demand += (x.d ? 0.3 : kcAt(c, f)) * Y.ET0[yy][x.m] + (x.d ? 0 : c.perc);
       supply += effRain(Y.P[yy][x.m]);
-      const thr = x.d ? c.fr : activeThr(c) - 1;
+      const thr = x.d ? c.fr : activeThr(c);
       if (i > 0 && i < pl.n - 1 && Y.Tn[yy][x.m] < thr && !(c.wk && x.d)) frost = true;
-      if (!x.d && f > 0.3 && f < 0.85 && Y.Tx[yy][x.m] > c.tx + 3) heat = true;
+      if (!x.d && f > 0.3 && f < 0.85 && Y.Tx[yy][x.m] > heatThr(c)) heat = true;
       if (!x.d) rh += Y.RH[yy][x.m];
     });
     if (!ok || !na) continue;
@@ -207,7 +212,7 @@ function history(c, ctx, pl) {
     const ratio = (supply + irr) / Math.max(1, demand);
     const wf = (ratio >= 1 ? 1 : Math.pow(clamp(ratio), 0.35 + 1.3 * (1 - c.dt))) * (ratio < 0.4 ? ratio / 0.4 : 1);
     dry = wf < 0.6 || ratio < 0.5;
-    const Sy = Math.pow(temp / na, 0.7) * wf * (frost ? 0.35 : 1) * (heat ? 1 - 0.5 * (1 - c.ht) : 1) * pl.wetF * pl.soilF * humF(c, rh / na);
+    const Sy = Math.pow(temp / na, 0.7) * wf * (frost ? 0.35 : 1) * (heat ? 1 - 0.5 * (1 - c.ht) : 1) * pl.wetF * pl.soilF * humF(c, rh / na) * (pl.pen ?? 1);
     out.push({ y: years[y] + Math.floor((pl.s + pl.n - 1) / 12), S: Sy, frost, heat, dry, irr });
   }
   return out;
@@ -226,11 +231,12 @@ function perennialPlace(c, ctx) {
   if (act < 4) return null;
   const pl = scoreSpan(c, ctx, 0, months);
   if (!pl) return null;
-  pl.S *= clamp(act / 6, 0.5, 1);
+  pl.pen = clamp(act / 6, 0.5, 1); // short active season for a perennial stand
+  pl.S *= pl.pen;
   return pl;
 }
 
-// Best placements of a main crop (up to 3 alternatives with different harvest months)
+// Best placements of a main crop (up to 4 alternatives with different harvest months)
 export function placeMain(c, ctx) {
   const ck = 'main:' + c.id;
   if (ctx.cache.has(ck)) return ctx.cache.get(ck);
@@ -317,6 +323,7 @@ function chooseGap(ctx, prefs, a, L, prev, next, forced) {
   if (forced && forced !== 'auto' && CROP[forced]) {
     // farmer-specified second crop: place it directly, no automatic rules
     const c = CROP[forced], s0 = ((a % 12) + 12) % 12;
+    if (c.per) return { type: 'fallow', L }; // a perennial stand needs whole years, not a gap
     let pl = null;
     for (let d = 0; d <= Math.min(1, L - 2) && !pl; d++) { pl = evalSpan(c, ctx, s0 + d, L - d, c.cover, true); if (pl) pl.off = d; }
     if (!pl && !c.cover) { pl = evalSpan(c, ctx, s0, L, true, true); if (pl) { pl.off = 0; pl.S *= pl.frac; } }
@@ -324,7 +331,7 @@ function chooseGap(ctx, prefs, a, L, prev, next, forced) {
   }
   const o = gapOptions(ctx, a, L);
   const W = prefs.w, ar = ctx.C.aridity;
-  const refGM = 1500;
+  const refGM = GAP_GM_SCALE;
   const cands = [{ type: 'fallow', L, u: W.water * (ar < 0.65 ? 0.35 * (1 - ar) : 0) + W.simple * 0.3 }];
   const nextC = CROP[next], prevC = CROP[prev];
   if (prefs.covers !== false) for (const p of o.covers.slice(0, 5)) {
@@ -473,7 +480,10 @@ function metrics(seq, yrs, ctx, prefs) {
   yrs.forEach((y, i) => {
     const c = y.c, L = local(ctx, c), pl = y.pl;
     const prev1 = nslots[(slotIdx - 1 + nsl) % nsl], prev2 = nslots[(slotIdx - 2 + nsl) % nsl];
-    const credit = (prev1.c.nfix ? prev1.c.nfix * prev1.S * CRED(prev1.c) : 0) + (prev2.c.nfix && nsl > 2 ? prev2.c.nfix * prev2.S * CRED(prev2.c) * 0.3 : 0);
+    const cr1 = prev1.c.nfix ? prev1.c.nfix * prev1.S * CRED(prev1.c) : 0;
+    const cr2 = prev2.c.nfix && nsl > 2 ? prev2.c.nfix * prev2.S * CRED(prev2.c) * 0.3 : 0;
+    const credit = cr1 + cr2;
+    const creditFrom = cr1 >= cr2 ? prev1.c.id : prev2.c.id; // the legume that supplied most of it
     const dem = c.ndem * pl.S;
     const fert = Math.max(0, dem - credit - ctx.minN);
     let inc = L.gm * pl.S - fert * ctx.prices.n - pl.irr * ctx.prices.irr;
@@ -491,7 +501,7 @@ function metrics(seq, yrs, ctx, prefs) {
     slotIdx += s.pl ? 2 : 1;
     fertTot += fert + f2; demTot += dem + (s.type === 'double' ? CROP[s.id].ndem * s.pl.S : 0);
     irrTot += irr; cuTot += cu; gmTot += inc; rainFit += pl.waterF;
-    perYear.push({ id: c.id, plant: pl.plant, harv: pl.harv, start: y.start - i * 12, end: y.end - i * 12, S: pl.S, Smean: pl.Smean, pFail: pl.pFail, yield: L.yld * pl.S, fert: fert + f2, credit, irr, income: inc, sec: s.pl ? { type: s.type, id: s.id, start: s.start - i * 12, end: s.end - i * 12, S: s.pl.S, frac: s.pl.frac, mulch: !!s.mulch } : { type: s.type, L: s.L } });
+    perYear.push({ id: c.id, plant: pl.plant, harv: pl.harv, start: y.start - i * 12, end: y.end - i * 12, S: pl.S, Smean: pl.Smean, pFail: pl.pFail, yield: L.yld * pl.S, fert: fert + f2, fMain: fert, fSec: f2, credit, creditFrom, irr, income: inc, sec: s.pl ? { type: s.type, id: s.id, start: s.start - i * 12, end: s.end - i * 12, S: s.pl.S, frac: s.pl.frac, mulch: !!s.mulch } : { type: s.type, L: s.L } });
   });
   const fert = fertTot / N, irr = irrTot / N, cu = cuTot / N, gm = gmTot / N;
 
@@ -544,7 +554,7 @@ function metrics(seq, yrs, ctx, prefs) {
   const pFail = mean(yrs.map((y) => y.pl.pFail));
   const stress = ctx.stress ? mean(seq.map((x) => { const p = placeMain(CROP[x], ctx.stress)[0]; const b = placeMain(CROP[x], ctx)[0]; return p && b ? clamp(p.S / Math.max(0.05, b.S), 0, 1.1) : 0; })) : 0.8;
   // historical replay (Time Machine summary)
-  const H = timeMachine(seq, yrs, ctx);
+  const H = timeMachine(seq, yrs, ctx, perYear);
   const incs = H.map((h) => h.income).sort((a, b) => a - b);
   const p10 = incs.length ? incs[Math.floor(incs.length * 0.1)] : gm;
   const stab = gm > 0 ? clamp(p10 / gm) : 0;
@@ -568,17 +578,21 @@ function metrics(seq, yrs, ctx, prefs) {
 }
 
 // Replay the rotation over the NASA record: year y uses rotation position (y - y0) mod N.
-function timeMachine(seq, yrs, ctx) {
+// Uses the same nitrogen and water accounting as the average margin, scaled to each year's outcome.
+function timeMachine(seq, yrs, ctx, perYear) {
   const N = seq.length, years = ctx.C.years;
   const out = [];
   for (let k = 0; k < years.length; k++) {
-    const i = k % N, y = yrs[i];
+    const i = k % N, y = yrs[i], py = perYear[i];
     const h = y.pl.hist.find((x) => x.y === years[k]);
     if (!h) continue;
     const L = local(ctx, y.c);
-    let inc = L.gm * h.S - y.c.ndem * h.S * 0.6 * ctx.prices.n - h.irr * ctx.prices.irr;
-    if (y.sec.type === 'double') { const c2 = CROP[y.sec.id]; inc += local(ctx, c2).gm * y.sec.pl.S * (0.6 + 0.4 * h.S / Math.max(0.2, y.pl.S)) - c2.ndem * y.sec.pl.S * 0.5 * ctx.prices.n; }
-    else if (y.sec.type === 'cover') inc += CROP[y.sec.id].gm;
+    const f = h.S / Math.max(0.05, y.pl.S); // this year's crop relative to the average year
+    let inc = L.gm * h.S - py.fMain * f * ctx.prices.n - h.irr * ctx.prices.irr;
+    if (y.sec.type === 'double') {
+      const c2 = CROP[y.sec.id], f2 = 0.6 + 0.4 * Math.min(1.5, f); // second crop shares part of the year's weather
+      inc += local(ctx, c2).gm * y.sec.pl.S * f2 - py.fSec * f2 * ctx.prices.n - y.sec.pl.irr * ctx.prices.irr;
+    } else if (y.sec.type === 'cover') inc += CROP[y.sec.id].gm;
     out.push({ y: years[k], id: y.c.id, S: h.S, income: inc, frost: h.frost, heat: h.heat, dry: h.dry, fail: h.S / y.pl.soilF < 0.45 });
   }
   return out;
@@ -617,13 +631,13 @@ export function recommend(base, inp) {
   const market = (c) => (!c.hort || inp.cons.hort) && (c.type !== 'forage' || inp.cons.forage);
   const pool = suit.filter((s) => !CROP[s.id].cover && s.S >= 0.3 && !prefs.exclude.includes(s.id) && ((home(CROP[s.id]) && market(CROP[s.id])) || include.includes(s.id)));
   // rank candidates by suitability blended with value & soil role so the pool is diverse
-  const rank = (s) => s.S * (0.7 + 0.3 * clamp(local(ctx, CROP[s.id]).gm / 900)) + (CROP[s.id].nfix ? 0.08 : 0);
+  const rank = (s) => s.S * (0.7 + 0.3 * clamp(local(ctx, CROP[s.id]).gm / POOL_GM_SCALE)) + (CROP[s.id].nfix ? 0.08 : 0);
   const sorted = [...pool].sort((a, b) => rank(b) - rank(a));
   const lens = inp.cons.len === 'auto' ? [1, 2, 3, 4] : [+inp.cons.len];
   const results = [];
   let evaluated = 0;
   const sMap = Object.fromEntries(suit.map((x) => [x.id, x.S]));
-  const gmN = (id) => clamp(local(ctx, CROP[id]).gm / 900);
+  const gmN = (id) => clamp(local(ctx, CROP[id]).gm / POOL_GM_SCALE);
   const W = prefs.w;
   const quick = (seq) => {
     // cheap pre-screen: suitability, value, legume N supply, family diversity, perennial cover
@@ -735,7 +749,7 @@ function explain(r, b, ctx, ins) {
   const C = ctx.C;
   // N credits
   const credit = r.years.filter((y) => y.credit > 15).sort((a, b2) => b2.credit - a.credit)[0];
-  if (credit) out.push({ ic: '🌱', k: 'r_ncredit', p: { crop: credit.id, n: Math.round(credit.credit), usd: Math.round(credit.credit * ctx.prices.n) } });
+  if (credit) out.push({ ic: '🌱', k: 'r_ncredit', p: { crop: credit.creditFrom, n: Math.round(credit.credit), usd: Math.round(credit.credit * ctx.prices.n) } });
   if (b) {
     const dF = b.fert - r.fert;
     if (dF > 10) out.push({ ic: '💰', k: 'r_fert', p: { n: Math.round(dF), co2: Math.round((dF * N_CO2E)) } });
@@ -746,7 +760,7 @@ function explain(r, b, ctx, ins) {
     const dW = b.irr - r.irr;
     if (dW > 20) out.push({ ic: '💧', k: 'r_water', p: { mm: Math.round(dW) } });
     const dR = b.pFail - r.pFail;
-    if (dR > 0.04) out.push({ ic: '📉', k: 'r_risk', p: { pct: Math.round(dR * 100) } });
+    if (dR > 0.04) out.push({ ic: '📉', k: 'r_risk', p: { pct: Math.round(dR * 100), n: C.years.length } });
   }
   const cover = r.years.find((y) => y.sec.type === 'cover');
   if (cover) {

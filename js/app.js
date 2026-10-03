@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.4';
-import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.4';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.4';
-import * as CH from './charts.js?v=1.9.4';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.10.0';
+import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.10.0';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.10.0';
+import * as CH from './charts.js?v=1.10.0';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,9 +20,10 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.9.4';
+export const APP_VERSION = '1.10.0';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
+let shiftTok = 0;
 let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
 
 function load() {
@@ -101,7 +102,8 @@ function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localSto
 // ---------------- Units ----------------
 function units() {
   const imp = S.units === 'imperial';
-  const nf = (d) => new Intl.NumberFormat(lang(), { maximumFractionDigits: d, minimumFractionDigits: 0 });
+  // one digit system everywhere (some locales default to native digits, which would mix with charts and scores)
+  const nf = (d) => new Intl.NumberFormat(lang(), { maximumFractionDigits: d, minimumFractionDigits: 0, numberingSystem: 'latn' });
   return {
     imp,
     temp: (c) => (imp ? c * 1.8 + 32 : c), tempL: imp ? '°F' : '°C', dTemp: (c) => (imp ? c * 1.8 : c),
@@ -110,10 +112,26 @@ function units() {
     moneyFmt: (v) => `${nf(0).format(imp ? v / 2.471 : v)} ${imp ? 'USD/ac' : 'USD/ha'}`,
     tha: (v) => (imp ? v / 2.471 : v), thaL: imp ? 't/ac' : 't/ha',
     kg: (v) => (imp ? v * 0.892 : v), kgL: imp ? 'lb N/ac' : 'kg N/ha',
+    m: (v) => (imp ? v * 3.281 : v), mL: imp ? 'ft' : 'm',
     n: (v, d = 0) => nf(d).format(v),
+    // value + unit, ready to drop into a sentence (isolated so it reads correctly inside right-to-left text)
+    q: (s2) => (RTL.has(lang()) ? `\u2066${s2}\u2069` : s2),
+    yr: () => t('yr_abbr'),
   };
 }
 let U = units();
+// formatted quantities used inside translated sentences (the unit travels with the number)
+const QF = {
+  kgha: (v) => U.q(`${U.n(U.kg(+v))} ${U.kgL}`),
+  kghaYr: (v) => U.q(`${U.n(U.kg(+v))} ${U.kgL}/${U.yr()}`),
+  usdha: (v) => U.q(`$${U.n(U.money(+v))}/${U.imp ? 'ac' : 'ha'}`),
+  thaYr: (v) => U.q(`${U.n(U.tha(+v), 1)} ${U.thaL}/${U.yr()}`),
+  mm: (v) => U.q(`${U.n(U.mm(+v))} ${U.mmL}`),
+  mmYr: (v) => U.q(`${U.n(U.mm(+v))} ${U.mmL}/${U.yr()}`),
+  co2: (v) => U.q(U.imp ? `${U.n(+v * 0.892)} lb/ac` : `${U.n(+v)} kg/ha`),
+  dT: (v) => U.q(`${+v > 0 ? '+' : ''}${U.n(U.dTemp(+v), 1)} ${U.tempL}`),
+};
+const PARAM_UNITS = { r_ncredit: { n: 'kgha', usd: 'usdha' }, r_fert: { n: 'kghaYr', co2: 'co2' }, r_erosion: { t: 'thaYr' }, w_erosion: { t: 'thaYr' }, r_water: { mm: 'mmYr' }, w_irr: { mm: 'mmYr' }, r_cover: { mm: 'mm' } };
 
 // ---------------- Worker ----------------
 let worker = null, wid = 0;
@@ -121,7 +139,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js?v=1.9.4', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.10.0', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -138,7 +156,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js?v=1.9.4');
+  engineMod = engineMod || await import('./engine.js?v=1.10.0');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
@@ -215,7 +233,7 @@ function renderShell() {
       <button class="icon-btn" data-act="settings" aria-label="${esc(t('settings'))}">${ico('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>', 20)}</button>
     </div>
   </header>
-  <nav class="tabs" id="tabs" aria-label="Sections">${TABS.map(([k, p], i) => `<a href="#${k}" data-go="${k}" id="tab-${k}"><span class="tab-n">${i + 1}</span>${ico(p)}<span>${esc(t('tab_' + k))}</span></a>`).join('')}</nav>
+  <nav class="tabs" id="tabs" aria-label="${esc(t('nav_sections'))}">${TABS.map(([k, p], i) => `<a href="#${k}" data-go="${k}" id="tab-${k}"><span class="tab-n">${i + 1}</span>${ico(p)}<span>${esc(t('tab_' + k))}</span></a>`).join('')}</nav>
   <main id="main">${TABS.map(([k]) => `<section id="v-${k}" class="view" hidden></section>`).join('')}<section id="v-about" class="view" hidden></section></main>
   <div id="busy" class="busy" hidden><div class="spin"></div><span id="busyMsg"></span></div>`;
   $('#langSel').onchange = async (e) => { S.lang = e.target.value; await setLang(S.lang); applyPrefs(); save(); renderShell(); go(S.tab); updateChip(); };
@@ -228,7 +246,7 @@ function updateChip() {
   const c = $('#farmchip');
   if (!c) return;
   c.hidden = !S.farm;
-  if (S.farm) c.innerHTML = `${ico('<path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>', 16)}<span>${esc(S.farm.name || `${S.farm.lat.toFixed(2)}, ${S.farm.lon.toFixed(2)}`)}</span>`;
+  if (S.farm) c.innerHTML = `${ico('<path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>', 16)}<span dir="auto">${esc(S.farm.name || `${S.farm.lat.toFixed(2)}, ${S.farm.lon.toFixed(2)}`)}</span>`;
 }
 
 function sizeCharts() {
@@ -253,11 +271,12 @@ function go(tab, fromHistory = false) {
   } catch (err) {
     console.error(err);
     window.__fsErr?.push('render ' + tab + ': ' + String(err?.stack || err).split('\n').slice(0, 2).join(' ')); window.__fsShowErr?.();
-    if (err instanceof TypeError) heal(); // mismatched cached files: fetch a clean copy
-    else $('#v-' + tab).innerHTML = `<p class="note warn">⚠️ ${esc(err.message)}</p>`;
+    // mismatched cached files: fetch a clean copy (once per session); otherwise show the problem in place
+    if (!(err instanceof TypeError && canHeal() && (heal(), true))) $('#v-' + tab).innerHTML = `<p class="note warn">⚠️ ${esc(t('engine_err'))}</p>`;
   }
 }
 // Clear cached app files and reload onto the latest version (at most once per session)
+function canHeal() { try { return !sessionStorage.getItem('fs-healed'); } catch { return false; } }
 async function heal() {
   try { if (sessionStorage.getItem('fs-healed')) return; sessionStorage.setItem('fs-healed', '1'); } catch { /* */ }
   try { for (const k of await caches.keys()) if (k !== 'fs-data' && k !== 'fs-demos') await caches.delete(k); } catch { /* */ }
@@ -309,10 +328,10 @@ async function showDiag() {
   try { const r = await navigator.serviceWorker?.getRegistration(); sw = r ? `${r.active?.scriptURL?.replace(/^.*\//, '') || '?'} (${r.active?.state || 'no active'})${navigator.serviceWorker.controller ? ' controlling' : ''}` : 'not registered'; } catch { /* */ }
   try { cks = await caches.keys(); } catch { /* */ }
   const info = [`FieldShift ${APP_VERSION}`, `URL: ${location.href}`, `Browser: ${navigator.userAgent}`, `Screen: ${innerWidth}x${innerHeight} @${devicePixelRatio}`, `Service worker: ${sw}`, `Caches: ${cks.join(', ')}`, `Worker: ${worker ? 'module worker' : 'main thread'}`, `Tab: ${S.tab} · farm: ${S.farm ? 'yes' : 'no'} · lang: ${S.lang}`, '--- errors ---', ...(window.__fsErr || []).slice(-15)].join('\n');
-  sheet(`<div class="sh-head"><h2>⚠️ Diagnostics</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
+  sheet(`<div class="sh-head"><h2>⚠️ ${esc(t('diag_title'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
     <pre class="diag-pre">${esc(info)}</pre>
-    <div class="row wrap gap"><button class="btn primary" id="diagCopy">📋 Copy</button><a class="btn" href="?reset">↺ Clean start</a></div>`);
-  $('#diagCopy').onclick = () => navigator.clipboard?.writeText(info).then(() => toast(t('copied')), () => prompt('Copy', info));
+    <div class="row wrap gap"><button class="btn primary" id="diagCopy">📋 ${esc(t('copy'))}</button><a class="btn" href="?reset">↺ ${esc(t('clean_start'))}</a></div>`);
+  $('#diagCopy').onclick = () => navigator.clipboard?.writeText(info).then(() => toast(t('copied')), () => prompt(t('copy'), info));
 }
 
 // ---------------- Busy / toast ----------------
@@ -362,9 +381,10 @@ async function openFarm(f, quiet = false) {
   loadRecent();
   S.soilPending = !!soilP;
   save(); updateChip();
-  if (!S.farm.name) reverseGeocode(f.lat, f.lon, lang()).then((n) => { if (n && S.farm) { S.farm.name = n; save(); updateChip(); if (S.tab === 'farm') renderFarm(); } });
+  if (!S.farm.name) reverseGeocode(f.lat, f.lon, lang()).then((n) => { if (n && S.farm) { S.farm.name = n; save(); updateChip(); if (S.tab === 'farm') keepUI($('#v-farm'), renderFarm); } });
   busy(t('loading_engine'));
   await run(true);
+  if (!sameFarm && !S.practice.current.length && res?.baseline) { S.practice.current = [...res.baseline.seq]; save(); }
   busy(null);
   if (raw.fromCache && !quiet && !navigator.onLine) toast(t('from_cache'));
   go(quiet ? (S.tab === 'farm' ? 'plans' : S.tab) : 'plans');
@@ -383,7 +403,7 @@ async function openFarm(f, quiet = false) {
       if (!S.farm || S.farm.lat !== +lat || S.farm.lon !== +lon) return;
       S.soilPending = false;
       if (sg) { raw = { ...raw, soil: sg }; applySoil(sg, false); save(); toast(t('soil_src').split('.')[0] + ' ✓'); run(); }
-      if (S.tab === 'farm') renderFarm();
+      if (S.tab === 'farm') keepUI($('#v-farm'), renderFarm);
     });
   }
 }
@@ -398,19 +418,30 @@ function rerun() { clearTimeout(runT); runT = setTimeout(() => run(), 220); }
 async function run(first = false) {
   if (!raw) return;
   const my = ++runSeq;
+  shift = null; shiftTok++;
   $('#v-plans')?.classList.add('stale');
   try {
     const r = await call('recommend');
     if (my !== runSeq) return;
     res = r;
-    if (!S.practice.current.length && res.baseline) { S.practice.current = [...res.baseline.seq]; save(); }
     custom = null;
-  } catch (err) { console.error(err); toast('Engine error: ' + err.message, 6000); }
+  } catch (err) { console.error(err); toast('⚠️ ' + t('engine_err'), 6000); window.__fsErr?.push('engine: ' + err.message); window.__fsShowErr?.(); }
   $('#v-plans')?.classList.remove('stale');
   try {
     if (!first && S.tab === 'plans') renderPlans();
-    if (!first && S.tab === 'lab') renderLab();
+    if (!first && S.tab === 'lab') keepUI($('#v-lab'), renderLab);
   } catch (err) { fail(err); }
+}
+
+// Re-render a view but keep the focused field (and its caret) and any expanded rows
+function keepUI(view, render) {
+  const a = document.activeElement;
+  const sel = a && view.contains(a) ? ['data-ov', 'data-id', 'data-soil', 'data-b', 'data-i', 'data-prio', 'data-price', 'id'].filter((k) => a.getAttribute(k) != null).map((k) => `[${k}="${CSS.escape(a.getAttribute(k))}"]`).join('') : null;
+  let caret = null; try { caret = a?.selectionStart ?? null; } catch { /* number inputs */ }
+  const open = [...view.querySelectorAll('details[open]')].map((d) => d.querySelector('[data-id]')?.dataset.id).filter(Boolean);
+  render();
+  for (const id of open) view.querySelector(`[data-id="${CSS.escape(id)}"]`)?.closest('details')?.setAttribute('open', '');
+  if (sel) { const el = view.querySelector(sel); if (el) { el.focus({ preventScroll: true }); try { if (caret != null) el.setSelectionRange(caret, caret); } catch { /* */ } } }
 }
 
 // ---------------- FARM TAB ----------------
@@ -425,7 +456,7 @@ function renderFarm() {
     <article class="card">
       <h2>${esc(t('farm_title'))}</h2>
       <p class="big">${esc(S.farm.name || '')}</p>
-      <p class="muted">${S.farm.lat.toFixed(4)}°, ${S.farm.lon.toFixed(4)}° · ${raw.elev != null ? `${Math.round(raw.elev)} m` : ''} · ${esc(zoneLabel())}</p>
+      <p class="muted"><span dir="ltr">${S.farm.lat.toFixed(4)}°, ${S.farm.lon.toFixed(4)}°</span> · ${raw.elev != null ? `${U.n(U.m(raw.elev))} ${U.mL}` : ''} · ${esc(zoneLabel())}</p>
       <div class="row wrap gap">
         <button class="btn" data-act="changeLoc">${ico('<path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>', 18)} ${esc(t('change_loc'))}</button>
         <button class="btn ghost" data-act="map">${ico('<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>', 18)} ${esc(t('map_layers'))}</button>
@@ -434,9 +465,10 @@ function renderFarm() {
       ${S.saved.length ? `<h3>${esc(t('saved_farms'))}</h3><div class="chips">${S.saved.map((f, i) => `<button class="chip" data-act="openSaved" data-i="${i}">${esc(f.name || `${f.lat.toFixed(2)},${f.lon.toFixed(2)}`)}</button>`).join('')}</div>` : ''}
     </article>
     <article class="card">
-      <h2>${esc(t('soil_title'))} <small class="pill">${esc(t('texture'))}: ${esc(cls.replace(/_/g, ' '))}</small></h2>
+      <h2>${esc(t('soil_title'))} <small class="pill">${esc(t('texture'))}: <span id="texName">${esc(t('tex_' + cls))}</span></small></h2>
       <p class="muted small">${S.soilPending ? `<span class="spin sm"></span> ${esc(t('loading_soil'))}` : esc(S.soilAuto ? t('soil_src') : t('soil_none'))}</p>
-      <div class="texbar" aria-hidden="true"><i style="width:${+s.sand || 0}%;background:#e7c98f"></i><i style="width:${+s.silt || 0}%;background:#b9a07a"></i><i style="width:${+s.clay || 0}%;background:#8a6a4f"></i></div>
+      <div class="texbar" aria-hidden="true"><i style="width:${(100 * (+s.sand || 0)) / Math.max(100, s.sand + s.silt + s.clay)}%;background:#e7c98f"></i><i style="width:${(100 * (+s.silt || 0)) / Math.max(100, s.sand + s.silt + s.clay)}%;background:#b9a07a"></i><i style="width:${(100 * (+s.clay || 0)) / Math.max(100, s.sand + s.silt + s.clay)}%;background:#8a6a4f"></i></div>
+      <p class="note warn small" id="soilSum" ${Math.abs(s.sand + s.silt + s.clay - 100) <= 3 ? 'hidden' : ''}>${esc(t('soil_sum_warn', { sum: Math.round(s.sand + s.silt + s.clay) }))}</p>
       <div class="fields">
         ${num('sand', t('sand'), s.sand, 0, 100, 1, '%')}${num('silt', t('silt'), s.silt, 0, 100, 1, '%')}${num('clay', t('clay'), s.clay, 0, 100, 1, '%')}
         ${num('soc', t('soc'), s.soc, 1, 150, 0.1, 'g/kg')}${num('ph', t('ph'), s.ph, 3.5, 10, 0.1, '')}${num('bd', t('bd'), s.bd, 0.8, 1.9, 0.01, 'g/cm³')}
@@ -453,7 +485,7 @@ function renderFarm() {
       <label>${esc(t('drainage'))}</label>${seg('drainage', ['good', 'moderate', 'poor'], 'dr_')}
       <label>${esc(t('salinity'))}</label>${seg('salinity', ['none', 'moderate', 'high'], 'sal_')}
       <label for="slope">${esc(t('slope'))} <output>${p.slope}%</output></label><input type="range" id="slope" min="0" max="30" step="1" value="${p.slope}" data-prac="slope">
-      <label for="manure">${esc(t('manure'))} <output>${p.manure} ${esc(t('t_ha_yr'))}</output></label><input type="range" id="manure" min="0" max="20" step="1" value="${p.manure}" data-prac="manure">
+      <label for="manure">${esc(t('manure'))} <output>${U.n(U.tha(p.manure), 1)} ${U.thaL} ${esc(t('per_year'))}</output></label><input type="range" id="manure" min="0" max="20" step="1" value="${p.manure}" data-prac="manure">
       <label class="tog"><input type="checkbox" data-prac="conservation" ${p.conservation ? 'checked' : ''}> ${esc(t('conservation'))}</label>
     </div>
   </article>
@@ -472,19 +504,30 @@ function renderFarm() {
     if (el.dataset.soil) {
       if (el.value === '' || !Number.isFinite(+el.value)) return;
       S.soil[el.dataset.soil] = clamp(+el.value, +el.min, +el.max); S.soilEdited = true; save(); rerun();
-      if (['sand', 'silt', 'clay'].includes(el.dataset.soil)) clearTimeout(v._t), (v._t = setTimeout(renderFarm, 700));
+      if (['sand', 'silt', 'clay'].includes(el.dataset.soil)) updateTexture();
     }
     if (el.dataset.prac) {
       S.practice[el.dataset.prac] = el.type === 'checkbox' ? el.checked : +el.value;
       const o = el.previousElementSibling?.querySelector('output');
-      if (o) o.textContent = el.dataset.prac === 'slope' ? `${el.value}%` : `${el.value} ${t('t_ha_yr')}`;
+      if (o) o.textContent = el.dataset.prac === 'slope' ? `${el.value}%` : `${U.n(U.tha(+el.value), 1)} ${U.thaL} ${t('per_year')}`;
       save(); rerun();
     }
   };
+  v.addEventListener('change', (e) => {
+    // show the value actually used (clamped to the allowed range)
+    const el = e.target;
+    if (el.dataset.soil) el.value = S.soil[el.dataset.soil];
+  });
   v.onchange = (e) => {
     if (e.target.dataset.actChange === 'curAdd' && e.target.value) { S.practice.current.push(e.target.value); save(); rerun(); renderFarm(); }
     if (e.target.dataset.cursec != null) { S.practice.currentSec = S.practice.currentSec || []; S.practice.currentSec[+e.target.dataset.cursec] = e.target.value || undefined; save(); rerun(); }
   };
+}
+function updateTexture() {
+  const s2 = S.soil, cls = textureClass(s2.sand, s2.silt, s2.clay), sum = s2.sand + s2.silt + s2.clay;
+  const n = $('#texName'); if (n) n.textContent = t('tex_' + cls);
+  const bar = $('.texbar'); if (bar) [s2.sand, s2.silt, s2.clay].forEach((x, i) => { if (bar.children[i]) bar.children[i].style.width = `${(100 * x) / Math.max(100, sum)}%`; });
+  const w = $('#soilSum'); if (w) { w.hidden = Math.abs(sum - 100) <= 3; w.textContent = t('soil_sum_warn', { sum: Math.round(sum) }); }
 }
 const num = (k, label, val, min, max, step, unit) => `<label class="numf"><span>${esc(label)}</span><span class="numw"><input type="number" inputmode="decimal" data-soil="${k}" value="${esc(val)}" min="${min}" max="${max}" step="${step}"><em>${unit}</em></span></label>`;
 
@@ -495,10 +538,10 @@ function zoneLabel() {
 }
 
 function landing() {
-  const groups = { Americas: [], Africa: [], Europe: [], Asia: [], Oceania: [] };
+  const groups = { americas: [], africa: [], europe: [], asia: [], oceania: [] };
   for (const d of DEMOS) {
     const [, , lat, lon] = d;
-    const g = lon < -30 ? 'Americas' : lon < 52 && lat < 36 && !(lon > 25 && lat > 29) ? 'Africa' : lon < 52 && lat >= 36 ? 'Europe' : lon > 110 && lat < -10 ? 'Oceania' : lon < 52 ? 'Africa' : 'Asia';
+    const g = lon < -30 ? 'americas' : lon < 52 && lat < 36 && !(lon > 25 && lat > 29) ? 'africa' : lon < 52 && lat >= 36 ? 'europe' : lon > 110 && lat < -10 ? 'oceania' : lon < 52 ? 'africa' : 'asia';
     groups[g].push(d);
   }
   return `
@@ -522,7 +565,7 @@ function landing() {
     <p><button class="link" data-act="guide">❓ ${esc(t('guide_title'))}</button></p>
     <h2 class="demo-h">${esc(t('or_demo'))}</h2>
     <p class="muted small center">${esc(t('demo_note'))}</p>
-    <div class="demos">${Object.entries(groups).filter(([, a]) => a.length).map(([g, a]) => `<div class="demo-g"><h3>${g}</h3><div class="chips">${a.map(([id, n, lat, lon]) => `<button class="chip demo" data-act="demo" data-id="${id}" data-lat="${lat}" data-lon="${lon}" data-name="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`).join('')}</div>
+    <div class="demos">${Object.entries(groups).filter(([, a]) => a.length).map(([g, a]) => `<div class="demo-g"><h3>${esc(t('reg_' + g))}</h3><div class="chips">${a.map(([id, n, lat, lon]) => `<button class="chip demo" data-act="demo" data-id="${id}" data-lat="${lat}" data-lon="${lon}" data-name="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`).join('')}</div>
   </div>`;
 }
 function heroArt() {
@@ -584,7 +627,7 @@ function renderClimate() {
   <article class="card" id="shiftCard"><h2>${esc(t('shift_title'))}</h2><p class="muted small">${esc(t('shift_sub'))}</p><div id="shiftBody">${shift ? shiftHTML() : `<div class="skel"></div>`}</div></article>
   <article class="card" id="ndviCard"><h2>${esc(t('ndvi_title'))}</h2><p class="muted small">${esc(t('ndvi_sub'))}</p><div id="ndviBody">${ndvi ? ndviHTML() : `<button class="btn" data-act="ndvi">🛰️ ${esc(t('ndvi_load'))}</button>`}</div></article>
   <div class="next"><button class="btn ghost" data-act="map">🗺️ ${esc(t('map_layers'))}</button><button class="btn primary" data-go="goals">${esc(t('tab_goals'))} →</button></div>`;
-  if (!shift) call('shift').then((r) => { shift = r; const b = $('#shiftBody'); if (b) b.innerHTML = shiftHTML(); }).catch(() => {});
+  if (!shift) { const tok = ++shiftTok; call('shift').then((r) => { if (tok !== shiftTok) return; shift = r; const b = $('#shiftBody'); if (b) b.innerHTML = shiftHTML(); }).catch(() => {}); }
   if (!ndvi && navigator.onLine) ACT.ndvi();
 }
 function shiftHTML() {
@@ -680,15 +723,15 @@ function renderGoals() {
   <article class="card">
     <h2>${esc(t('prices'))}</h2>
     <div class="fields">
-      <label class="numf"><span>${esc(t('n_price'))}</span><span class="numw"><input type="number" step="0.05" min="0" value="${S.prices.n}" data-price="n"><em>$</em></span></label>
-      <label class="numf"><span>${esc(t('w_price'))}</span><span class="numw"><input type="number" step="0.01" min="0" value="${S.prices.irr}" data-price="irr"><em>$</em></span></label>
+      <label class="numf"><span>${esc(t('n_price'))}</span><span class="numw"><input type="number" step="0.05" min="0" max="20" value="${S.prices.n}" data-price="n"><em>$</em></span></label>
+      <label class="numf"><span>${esc(t('w_price'))}</span><span class="numw"><input type="number" step="0.01" min="0" max="5" value="${S.prices.irr}" data-price="irr"><em>$</em></span></label>
     </div>
   </article>
   <div class="next"><button class="btn primary" data-go="plans">${esc(t('tab_plans'))} →</button></div>`;
   v.oninput = (e) => {
     const el = e.target;
     if (el.dataset.prio) { S.prio[el.dataset.prio] = +el.value; el.style.setProperty('--v', `${el.value * 20}%`); el.previousElementSibling.querySelector('output').textContent = el.value; save(); rerun(); }
-    if (el.dataset.price) { S.prices[el.dataset.price] = +el.value; save(); rerun(); }
+    if (el.dataset.price) { if (el.value === '' || !Number.isFinite(+el.value)) return; S.prices[el.dataset.price] = clamp(+el.value, 0, el.dataset.price === 'n' ? 20 : 5); save(); rerun(); }
   };
   v.onchange = (e) => { const el = e.target; if (el.dataset.cons) { S.cons[el.dataset.cons] = el.checked; save(); rerun(); } };
 }
@@ -711,15 +754,15 @@ function delta(v, b, fmt, goodUp = true, unit = '') {
 function metricsRow(r, b, compact = false) {
   const items = [
     ['🪱', t('m_soc'), delta(r.socPct, b?.socPct, (x) => `${x.toFixed(1)}%`, true)],
-    ['🛡️', t('m_ero'), delta(U.tha(r.erosion), b ? U.tha(b.erosion) : null, (x) => x.toFixed(1), false, U.thaL + '/yr')],
+    ['🛡️', t('m_ero'), delta(U.tha(r.erosion), b ? U.tha(b.erosion) : null, (x) => x.toFixed(1), false, `${U.thaL}/${U.yr()}`)],
     ['🧪', t('m_fert'), delta(U.kg(r.fert), b ? U.kg(b.fert) : null, (x) => Math.round(x), false, U.kgL)],
-    ['💧', t('m_irr'), delta(U.mm(r.irr), b ? U.mm(b.irr) : null, (x) => Math.round(x), false, U.mmL + '/yr')],
+    ['💧', t('m_irr'), delta(U.mm(r.irr), b ? U.mm(b.irr) : null, (x) => Math.round(x), false, `${U.mmL}/${U.yr()}`)],
     ['💰', t('m_gm'), delta(U.money(r.gm), b ? U.money(b.gm) : null, (x) => Math.round(x), true, U.moneyL)],
   ];
   if (!compact) items.push(
     ['🌧️', t('m_p10'), delta(U.money(r.p10), b ? U.money(b.p10) : null, (x) => Math.round(x), true, U.moneyL)],
     ['⚠️', t('m_fail'), delta(r.pFail * 100, b ? b.pFail * 100 : null, (x) => `${Math.round(x)}%`, false)],
-    ['🌍', t('m_co2'), delta(r.co2e, b?.co2e, (x) => x.toFixed(2), true, t('u_co2'))],
+    ['🌍', t('m_co2'), delta(U.tha(r.co2e), b ? U.tha(b.co2e) : null, (x) => x.toFixed(2), true, `t CO₂e/${U.imp ? 'ac' : 'ha'}/${U.yr()}`)],
     ['🌱', t('m_living'), delta(r.livingFrac * 100, b ? b.livingFrac * 100 : null, (x) => `${Math.round(x)}%`, true)],
   );
   return `<div class="mets">${items.map(([ic, l, v]) => `<div class="met"><span>${ic} ${esc(l)}</span>${v}</div>`).join('')}</div>`;
@@ -729,7 +772,7 @@ function reasonText(x) {
   if (p.crop) p.crop = cropName(p.crop);
   if (p.from != null) p.from = monthName(p.from, 'long');
   if (p.to != null) p.to = monthName(p.to, 'long');
-  if (p.mm != null) p.mm = `${U.n(U.mm(p.mm))} ${U.mmL}`.replace(/ (mm|in)$/, '');
+  for (const [k, f] of Object.entries(PARAM_UNITS[x.k] || {})) if (p[k] != null) p[k] = QF[f](p[k]);
   return t(x.k, p);
 }
 const SC_KEYS = ['soil', 'water', 'profit', 'resil', 'simple'];
@@ -748,11 +791,11 @@ function renderPlans() {
     <button class="btn" data-act="report">📄 ${esc(t('report'))}</button></div>
   <div class="lens card flat">
     <span class="lens-l">🔭 ${esc(t('lens'))}</span>
-    <div class="chips">${SC.map((k) => `<button class="chip ${S.scen.mode === k ? 'on' : ''}" data-act="scen" data-k="${k}">${esc(t('sc_' + k))}</button>`).join('')}</div>
+    <div class="chips">${SC.map((k) => `<button class="chip ${S.scen.mode === k ? 'on' : ''}" data-act="scen" data-k="${k}">${esc(k === 'hotdry' ? t('sc_hotdry', { dT: QF.dT(2) }) : t('sc_' + k))}</button>`).join('')}</div>
     ${S.scen.mode === 'custom' ? `<div class="row wrap gap custom-sc">
-      <label>${esc(t('dT'))} <output>${S.scen.dT > 0 ? '+' : ''}${S.scen.dT} °C</output><input type="range" min="-1" max="5" step="0.5" value="${S.scen.dT}" data-scen="dT"></label>
+      <label>${esc(t('dT'))} <output>${QF.dT(S.scen.dT)}</output><input type="range" min="-1" max="5" step="0.5" value="${S.scen.dT}" data-scen="dT"></label>
       <label>${esc(t('dP'))} <output>${S.scen.dP > 0 ? '+' : ''}${S.scen.dP}%</output><input type="range" min="-40" max="30" step="5" value="${S.scen.dP}" data-scen="dP"></label></div>` : ''}
-    ${(sc.dT || sc.dP) ? `<p class="note small">🌡️ ${esc(t('sc_note', { dT: `${sc.dT > 0 ? '+' : ''}${(sc.dT || 0).toFixed(1)}`, dP: `${sc.dP > 0 ? '+' : ''}${Math.round((sc.dP || 0) * 100)}` }))}</p>` : ''}
+    ${(sc.dT || sc.dP) ? `<p class="note small">🌡️ ${esc(t('sc_note', { dT: QF.dT(sc.dT || 0), dP: `${sc.dP > 0 ? '+' : ''}${Math.round((sc.dP || 0) * 100)}` }))}</p>` : ''}
   </div>
   <div class="now-slot">${nowHTML()}</div>
   ${b ? `<article class="card baseline">
@@ -760,19 +803,19 @@ function renderPlans() {
     ${miniScores(b)}${metricsRow(b, null, true)}
     <div class="row gap"><button class="btn ghost sm" data-act="openPlan" data-i="-1">${esc(t('details'))}</button></div>
   </article>` : `<p class="note warn">${esc(t('cur_fail'))}</p>`}
-  ${res.droppedInclude?.length ? `<p class="note warn">⚠️ ${res.droppedInclude.map((id) => esc(cropName(id))).join(', ')}: ${esc(t('unsuitable'))} — ${esc(t('cur_fail'))}</p>` : ''}
+  ${res.droppedInclude?.length ? `<p class="note warn">⚠️ ${esc(t('include_unsuitable', { crops: res.droppedInclude.map(cropName).join(', ') }))}</p>` : ''}
   ${res.top.length ? `${summary(res.top[0], b)}<div class="plans">${res.top.map((r, i) => planCard(r, i, b)).join('')}</div>` : `<p class="note warn">${esc(t('no_plans'))}</p>`}`;
-  v.oninput = (e) => { const el = e.target; if (el.dataset.scen) { S.scen[el.dataset.scen] = +el.value; el.previousElementSibling.textContent = `${el.value > 0 ? '+' : ''}${el.value}${el.dataset.scen === 'dT' ? ' °C' : '%'}`; save(); rerun(); } };
+  v.oninput = (e) => { const el = e.target; if (el.dataset.scen) { S.scen[el.dataset.scen] = +el.value; el.previousElementSibling.textContent = el.dataset.scen === 'dT' ? QF.dT(el.value) : `${el.value > 0 ? '+' : ''}${el.value}%`; save(); rerun(); } };
 }
 function summary(r, b) {
   if (!b) return '';
   const items = [
     ['💰', t('m_gm'), U.money(r.gm - b.gm), (x) => `${x >= 0 ? '+' : '−'}${U.n(Math.abs(x))}`, U.moneyL, true],
     ['🧪', t('m_fert'), U.kg(r.fert - b.fert), (x) => `${x >= 0 ? '+' : '−'}${U.n(Math.abs(x))}`, U.kgL, false],
-    ...(Math.abs(r.irr - b.irr) > 5 ? [['💧', t('m_irr'), U.mm(r.irr - b.irr), (x) => `${x >= 0 ? '+' : '−'}${U.n(Math.abs(x))}`, U.mmL + '/yr', false]] : []),
+    ...(Math.abs(r.irr - b.irr) > 5 ? [['💧', t('m_irr'), U.mm(r.irr - b.irr), (x) => `${x >= 0 ? '+' : '−'}${U.n(Math.abs(x))}`, `${U.mmL}/${U.yr()}`, false]] : []),
     ['🪱', t('m_soc'), r.socPct - b.socPct, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}`, '%', true],
     ['🛡️', t('m_ero'), b.erosion ? ((r.erosion - b.erosion) / b.erosion) * 100 : 0, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x))}`, '%', false],
-    ['⚠️', t('m_fail'), (r.pFail - b.pFail) * 100, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x))}`, 'pts', false],
+    ['⚠️', t('m_fail'), (r.pFail - b.pFail) * 100, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x))}`, t('pts'), false],
   ];
   return `<section class="summary"><div class="sum-h"><span class="eyebrow">#1 ${esc(t('vs_current'))}</span><div class="seq">${planTitle(r)}</div></div>
     <div class="sum-k">${items.map(([ic, l, v, f, u, upGood]) => { const good = Math.abs(v) < 0.05 ? '' : (v > 0) === upGood ? 'up' : 'down'; return `<div><span>${ic} ${esc(l)}</span><b class="${good}">${f(v)}<small> ${esc(u)}</small></b></div>`; }).join('')}</div></section>`;
@@ -798,12 +841,31 @@ function planCard(r, i, b) {
 function sheet(html) {
   let s = $('#sheet');
   if (!s) { s = document.createElement('div'); s.id = 'sheet'; s.className = 'sheet'; s.setAttribute('role', 'dialog'); s.setAttribute('aria-modal', 'true'); document.body.append(s); }
+  if (s.hidden !== false || !sheetOpener) sheetOpener = document.activeElement;
   s.innerHTML = `<div class="sheet-bg" data-act="closeSheet"></div><div class="sheet-p">${html}</div>`;
+  const h = $('.sheet-p h2, .sheet-p .eyebrow', s);
+  s.setAttribute('aria-label', h ? h.textContent.trim().slice(0, 80) : 'FieldShift');
   s.hidden = false; document.body.classList.add('noscroll');
   $('.sheet-p', s).scrollTop = 0;
   setTimeout(() => $('.sheet-p .x', s)?.focus(), 30);
 }
-function closeSheet() { const s = $('#sheet'); if (s) { s.hidden = true; document.body.classList.remove('noscroll'); } openPlan = null; stopSpeak(); }
+let sheetOpener = null;
+function closeSheet() {
+  const s = $('#sheet');
+  if (s && !s.hidden) { s.hidden = true; document.body.classList.remove('noscroll'); try { sheetOpener?.focus?.({ preventScroll: true }); } catch { /* */ } }
+  sheetOpener = null; openPlan = null; stopSpeak();
+}
+// keep keyboard focus inside an open sheet
+document.addEventListener('keydown', (e) => {
+  const s = $('#sheet');
+  if (e.key !== 'Tab' || !s || s.hidden) return;
+  const f = [...s.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])')].filter((x) => x.offsetParent !== null);
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (!s.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+  else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 
 function planDetail(r, label) {
   const b = res.baseline, isBase = r === b;
@@ -854,8 +916,8 @@ function actions(r) {
     const c = CROP[y.id], o = i * 12;
     ev.push({ m: o + y.plant, k: 'act_sow', p: { crop: y.id }, ic: '🌱' });
     if (c.nfix) ev.push({ m: o + y.plant, k: 'act_inoc', p: { crop: y.id }, ic: '🧫' });
-    if (y.fert > 10) ev.push({ m: o + y.plant, k: 'act_fert', p: { crop: y.id, n: Math.round(U.kg(y.fert)) }, ic: '🧪' });
-    if (y.irr > 20) ev.push({ m: o + y.plant + 1, k: 'act_irr', p: { crop: y.id, mm: `${U.n(U.mm(y.irr))} ${U.mmL}` }, ic: '💧' });
+    if (y.fert > 10) ev.push({ m: o + y.plant, k: 'act_fert', p: { crop: y.id, n: QF.kgha(y.fert) }, ic: '🧪' });
+    if (y.irr > 20) ev.push({ m: o + y.plant + 1, k: 'act_irr', p: { crop: y.id, mm: QF.mm(y.irr) }, ic: '💧' });
     if (y.pFail > 0.15) ev.push({ m: o + y.plant - 1, k: 'act_variety', p: { crop: y.id }, ic: '⚠️' });
     ev.push({ m: o + y.harv, k: 'act_harvest', p: { crop: y.id }, ic: '🌾' });
     if (y.sec.type === 'cover') {
@@ -886,21 +948,24 @@ function actionsHTML(r) {
 function downloadICS(r) {
   const ev = actions(r);
   const pad = (n) => String(n).padStart(2, '0');
-  const stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const txt = (x) => String(x).replace(/\\/g, '\\\\').replace(/[,;]/g, (c) => '\\' + c).replace(/\r?\n/g, '\\n');
+  // fold at 75 octets without splitting a UTF-8 character
+  const fold = (line) => {
+    const out = []; let cur = '', bytes = 0;
+    for (const ch of line) { const n = new TextEncoder().encode(ch).length; if (bytes + n > (out.length ? 74 : 75)) { out.push(cur); cur = ''; bytes = 0; } cur += ch; bytes += n; }
+    out.push(cur);
+    return out.join('\r\n ');
+  };
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FieldShift//EN', 'CALSCALE:GREGORIAN'];
   ev.forEach((e, i) => {
-    const d = `${e.year}${pad(e.month + 1)}01`;
-    const d2 = `${e.year}${pad(e.month + 1)}08`;
+    const d = `${e.year}${pad(e.month + 1)}01`, d2 = `${e.year}${pad(e.month + 1)}08`;
     lines.push('BEGIN:VEVENT', `UID:fs-${Date.now()}-${i}@fieldshift`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${d2}`,
-      `SUMMARY:${e.text.replace(/[,;]/g, (x) => '\\' + x)}`, `DESCRIPTION:FieldShift — ${(S.farm?.name || '').replace(/[,;]/g, ' ')}`,
-      'BEGIN:VALARM', 'TRIGGER:-P2D', 'ACTION:DISPLAY', `DESCRIPTION:${e.text.replace(/[,;]/g, ' ')}`, 'END:VALARM', 'END:VEVENT');
+      `SUMMARY:${txt(e.text)}`, `DESCRIPTION:${txt('FieldShift — ' + (S.farm?.name || ''))}`,
+      'BEGIN:VALARM', 'TRIGGER:-P2D', 'ACTION:DISPLAY', `DESCRIPTION:${txt(e.text)}`, 'END:VALARM', 'END:VEVENT');
   });
   lines.push('END:VCALENDAR');
-  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'fieldshift-plan.ics';
-  document.body.append(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  download('fieldshift-plan.ics', lines.map(fold).join('\r\n'), 'text/calendar;charset=utf-8');
 }
 
 // ---------------- Report builder ----------------
@@ -941,15 +1006,15 @@ function reportHTML() {
   if (O.farm) h.push(`<section><h2>${esc(t('sec_farm'))}</h2><table class="tbl kv"><tbody>
     <tr><th>${esc(t('irrigation'))}</th><td>${esc(t('irr_' + p.irrigation))}</td><th>${esc(t('tillage'))}</th><td>${esc(t('till_' + p.tillage))}</td></tr>
     <tr><th>${esc(t('residue'))}</th><td>${esc(t('res_' + p.residue))}</td><th>${esc(t('drainage'))}</th><td>${esc(t('dr_' + p.drainage))}</td></tr>
-    <tr><th>${esc(t('slope'))}</th><td>${p.slope}%</td><th>${esc(t('manure'))}</th><td>${p.manure} ${esc(t('t_ha_yr'))}</td></tr>
+    <tr><th>${esc(t('slope'))}</th><td>${p.slope}%</td><th>${esc(t('manure'))}</th><td>${U.n(U.tha(p.manure), 1)} ${U.thaL} ${esc(t('per_year'))}</td></tr>
     <tr><th>${esc(t('current_rot'))}</th><td colspan="3">${esc(b ? planText(b) : p.current.map(cropName).join(' → '))}</td></tr></tbody></table></section>`);
   if (O.soil) h.push(`<section><h2>${esc(t('sec_soil'))}</h2><table class="tbl kv"><tbody>
-    <tr><th>${esc(t('texture'))}</th><td>${esc(textureClass(sl.sand, sl.silt, sl.clay).replace(/_/g, ' '))}</td><th>${esc(t('sand'))} / ${esc(t('silt'))} / ${esc(t('clay'))}</th><td>${sl.sand} / ${sl.silt} / ${sl.clay} %</td></tr>
+    <tr><th>${esc(t('texture'))}</th><td>${esc(t('tex_' + textureClass(sl.sand, sl.silt, sl.clay)))}</td><th>${esc(t('sand'))} / ${esc(t('silt'))} / ${esc(t('clay'))}</th><td>${sl.sand} / ${sl.silt} / ${sl.clay} %</td></tr>
     <tr><th>${esc(t('soc'))}</th><td>${sl.soc} g/kg</td><th>${esc(t('ph'))}</th><td>${sl.ph}</td></tr>
     <tr><th>${esc(t('bd'))}</th><td>${sl.bd} g/cm³</td><th>${esc(t('cec'))}</th><td>${sl.cec ?? '–'} cmol/kg</td></tr></tbody></table>
     <p class="muted small">${esc(S.soilEdited ? '✎' : t('soil_src'))}</p></section>`);
   if (O.climate) h.push(`<section><h2>${esc(t('sec_climate'))}</h2>
-    <div class="kpis">${[[t('k_temp'), `${U.n(U.temp(ins.Tann), 1)}${U.tempL}`], [t('k_rain'), `${U.n(U.mm(ins.Pann))} ${U.mmL}`], [t('k_arid'), U.n(ins.aridity, 2)], [t('k_warm'), `${ins.tTrend >= 0 ? '+' : ''}${U.n(U.dTemp(ins.tTrend), 2)}${U.tempL} / 10 yr`], [t('k_rainTrend'), `${ins.pTrend >= 0 ? '+' : ''}${U.n(ins.pTrend, 1)}% / 10 yr`], [t('k_dry'), `${Math.round(ins.dryFreq * 100)}%`]].map(([l, v]) => `<div class="kpi"><span>${esc(l)}</span><b>${v}</b></div>`).join('')}</div>
+    <div class="kpis">${[[t('k_temp'), `${U.n(U.temp(ins.Tann), 1)}${U.tempL}`], [t('k_rain'), `${U.n(U.mm(ins.Pann))} ${U.mmL}`], [t('k_arid'), U.n(ins.aridity, 2)], [t('k_warm'), `${ins.tTrend >= 0 ? '+' : ''}${U.n(U.dTemp(ins.tTrend), 2)}${U.tempL} ${t('per_decade')}`], [t('k_rainTrend'), `${ins.pTrend >= 0 ? '+' : ''}${U.n(ins.pTrend, 1)}% ${t('per_decade')}`], [t('k_dry'), `${Math.round(ins.dryFreq * 100)}%`]].map(([l, v]) => `<div class="kpi"><span>${esc(l)}</span><b>${v}</b></div>`).join('')}</div>
     <div class="grid2">${CH.rainChart(C.norm, U)}${CH.tempChart(C.norm, C.frost, U)}</div></section>`);
   if (O.now && recent) h.push(`<section>${nowHTML()}</section>`);
   if (O.suit) h.push(`<section><h2>${esc(t('sec_suit'))}</h2><table class="tbl"><thead><tr><th>${esc(t('crop'))}</th><th>${esc(t('score'))}</th><th>${esc(t('sow'))}–${esc(t('harvest'))}</th><th>${esc(t('exp_yield'))}</th><th>${esc(t('m_fail'))}</th><th>${esc(t('limit_by'))}</th></tr></thead><tbody>
@@ -1031,7 +1096,7 @@ function renderLab() {
     <h2>🧩 ${esc(t('builder'))}</h2><p class="muted small">${esc(t('builder_sub'))}</p>
     <div class="builder">${B.seq.map((id, i) => `<div class="bslot" style="--c:${famColor(id)}"><span class="eyebrow">${esc(t('yr'))} ${i + 1}</span>
       <select data-b="seq" data-i="${i}" aria-label="${esc(t('crop'))}">${MAIN_CROPS.map((c) => `<option value="${c.id}" ${c.id === id ? 'selected' : ''}>${c.ic} ${esc(cropName(c.id))}</option>`).join('')}</select>
-      <small>${esc(t('then'))}</small><select data-b="sec" data-i="${i}">${secOpts(B.sec[i] || 'auto')}</select>
+      <small>${esc(t('then'))}</small><select data-b="sec" data-i="${i}" aria-label="${esc(t('then'))}">${secOpts(B.sec[i] || 'auto')}</select>
       ${B.seq.length > 1 ? `<button class="link" data-act="bDel" data-i="${i}">${esc(t('remove'))}</button>` : ''}</div>`).join('')}
       ${B.seq.length < 5 ? `<button class="bslot add" data-act="bAdd">+ ${esc(t('add_year'))}</button>` : ''}</div>
     <div id="customOut">${custom ? customHTML() : `<div class="skel"></div>`}</div>
@@ -1054,7 +1119,7 @@ function renderLab() {
   v.onchange = (e) => {
     const el = e.target;
     if (el.dataset.b) { S.builder[el.dataset.b][+el.dataset.i] = el.value; custom = null; save(); evalCustom(); }
-    if (el.dataset.ov) { S.overrides[el.dataset.id] = { ...(S.overrides[el.dataset.id] || {}), [el.dataset.ov]: +el.value }; save(); rerun(); }
+    if (el.dataset.ov) { if (el.value === '' || !Number.isFinite(+el.value)) return; S.overrides[el.dataset.id] = { ...(S.overrides[el.dataset.id] || {}), [el.dataset.ov]: +el.value }; save(); rerun(); } // entered in the units the labels state (t/ha, USD/ha)
   };
 }
 async function evalCustom() {
@@ -1078,34 +1143,18 @@ function customHTML() {
 
 // ---------------- ABOUT ----------------
 function renderAbout() {
+  const y0 = ins?.years?.[0] ?? 1995;
   $('#v-about').innerHTML = `<article class="card prose">
   <h1>${esc(t('about'))}</h1><p>${esc(t('about_body'))}</p>
   <h2>${esc(t('data_sources'))}</h2>
-  <ul>
-    <li><b>NASA POWER</b> (Prediction Of Worldwide Energy Resources) — monthly temperature, extremes, precipitation (corrected), solar radiation, humidity, wind, root-zone & surface soil wetness (GMAO MERRA-2 / GEOS, CERES, IMERG-corrected), 1995 → last year; frost-day climatology.</li>
-    <li><b>NASA GIBS</b> — VIIRS true colour, MODIS NDVI 16-day, SMAP L4 root-zone soil moisture map layers.</li>
-    <li><b>MODIS MOD13Q1</b> NDVI (250 m, 16-day) via the ORNL DAAC subsetting service — observed greening at your field.</li>
-    <li><b>ISRIC SoilGrids 2.0</b> — sand, silt, clay, organic carbon, pH, bulk density, CEC, nitrogen (0–30 cm).</li>
-    <li>Crop parameters: FAO Ecocrop, FAO-56 crop coefficients, extension literature. Geocoding: Open-Meteo, OpenStreetMap Nominatim.</li>
-  </ul>
+  <ul>${['about_src_power', 'about_src_gibs', 'about_src_modis', 'about_src_soil', 'about_src_crop'].map((k) => `<li>${esc(t(k, { y0 }))}</li>`).join('')}</ul>
   <h2>${esc(t('method'))}</h2>
-  <ol>
-    <li>Reference evapotranspiration (Hargreaves radiation method) and effective rainfall (USDA-SCS) from NASA POWER, month by month.</li>
-    <li>Each crop is placed in the calendar using growing-degree days, frost and heat probabilities from 30 years of NASA monthly extremes, a FAO-56 water balance seeded with NASA root-zone soil wetness, waterlogging, humidity-driven disease, soil pH, texture and salinity.</li>
-    <li>Every placement is replayed against each real year of the NASA record to estimate failure risk (the “Time Machine”).</li>
-    <li>Thousands of rotation sequences are generated; gaps between crops are filled with the best cover crop, second cash crop or fallow for your priorities.</li>
-    <li>Each rotation is simulated for 20 years: soil organic carbon (two-pool, equilibrium-calibrated), RUSLE erosion with NASA-derived rainfall erosivity, nitrogen budget with legume credits, irrigation, nitrate-leaching exposure, margins, greenhouse-gas balance and pest-break rules.</li>
-    <li>Scores for soil, water, income, resilience and simplicity are weighted by your sliders. Climate lenses re-run everything under recent, projected (NASA-observed trend to 2040/2050) or stress climates.</li>
-  </ol>
-  <h2>🔒 Privacy & security</h2>
-  <ul>
-    <li>No account, no tracking, no ads, no analytics. Your farm, soil and choices are stored only on your device.</li>
-    <li>Only the field coordinates are sent — directly from your browser — to NASA POWER, NASA/ORNL MODIS, ISRIC SoilGrids and the place-name services. Nothing passes through a FieldShift server (there is none).</li>
-    <li>HTTPS-only, strict Content Security Policy, integrity-checked map library, sanitised share links, no third-party scripts.</li>
-    <li>Use <a href="?reset">Clean start</a> to erase everything FieldShift stored on this device.</li>
-  </ul>
+  <ol>${[1, 2, 3, 4, 5, 6].map((i) => `<li>${esc(t('method_' + i))}</li>`).join('')}</ol>
+  <h2>🔒 ${esc(t('privacy_title'))}</h2>
+  <ul>${[1, 2, 3, 4].map((i) => `<li>${esc(t('privacy_' + i))}</li>`).join('')}</ul>
+  <p><a class="btn ghost sm" href="?reset">↺ ${esc(t('clean_start'))}</a></p>
   <p class="note">${esc(t('disclaimer'))}</p>
-  <p class="muted small">NASA does not endorse this tool. Built for the 2026 NASA Space Apps Challenge — “Field Shift: Adapting Farms with NASA Data”.</p>
+  <p class="muted small">${esc(t('endorse'))}</p>
   </article>`;
 }
 
@@ -1132,7 +1181,7 @@ function settingsHTML() {
     <button class="btn" data-act="about">ℹ️ ${esc(t('about'))}</button>
     <button class="btn ghost" data-act="resetAll">↺ ${esc(t('reset'))}</button>
   </div>
-  <p class="muted small">FieldShift ${APP_VERSION} · <button class="link" data-act="diag">Diagnostics</button> · <a href="?reset">Clean start</a></p>`;
+  <p class="muted small">FieldShift ${APP_VERSION} · <button class="link" data-act="diag">${esc(t('diag_title'))}</button> · <a href="?reset">${esc(t('clean_start'))}</a></p>`;
 }
 // ---------------- Install as an app (Android, iPhone, desktop) ----------------
 let deferredInstall = null;
@@ -1149,7 +1198,7 @@ async function install() {
   const how = isIOS() ? esc(t('install_ios', { share: '§S', add: '§A' })).replace('§S', SHARE_IC).replace('§A', ADD_IC) : esc(t('install_other'));
   sheet(`<div class="sh-head"><h2>⬇ ${esc(t('install_title'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
     <div class="install-card"><img src="icons/icon-192.png" width="72" height="72" alt=""><div><p>${esc(t('install_sub'))}</p><p class="big-step">${how}</p></div></div>
-    ${isIOS() ? `<div class="ios-steps"><div><span>1</span>${SHARE_IC}</div><div><span>2</span>${ADD_IC} ${esc(t('install_ios').split('“')[1]?.split('”')[0] || 'Add to Home Screen')}</div><div><span>3</span>✓</div></div>` : ''}`);
+    ${isIOS() ? `<div class="ios-steps"><div><span>1</span>${SHARE_IC}</div><div><span>2</span>${ADD_IC} ${esc(t('install_add'))}</div><div><span>3</span>✓</div></div>` : ''}`);
 }
 
 // ---------------- Map (lazy Leaflet + NASA GIBS) ----------------
@@ -1181,7 +1230,7 @@ async function openMap() {
     [t('l_ndvi')]: gibs('MODIS_Terra_L3_NDVI_16Day', 'png', 9, { opacity: 0.7 }),
     [t('l_smap')]: gibs('SMAP_L4_Analyzed_Root_Zone_Soil_Moisture', 'png', 6, { opacity: 0.65 }),
   };
-  L.control.layers(layers, over, { collapsed: false }).addTo(m);
+  L.control.layers(layers, over, { collapsed: innerWidth < 700 }).addTo(m);
   let mk = S.farm ? L.marker(c).addTo(m) : null;
   m.on('click', (e) => {
     const { lat, lng } = e.latlng;
@@ -1203,11 +1252,14 @@ function planSpeech(r, idx) {
 }
 // Warm, unhurried baritone narration: deepest male voice on the device, lowered pitch, slow pace,
 // spoken sentence by sentence with small pauses.
-const MALE = /(guy|davis|christopher|eric|roger|steffan|brian|ryan|thomas|daniel|alex|fred|aaron|arthur|gordon|oliver|male|man|david|mark|george|james|jorge|diego|pablo|raul|henri|paul|claude|antonio|ricardo|duarte|madhur|prabhat|hemant|rafiki|daudi)/i;
+const MALE = /(guy|davis|christopher|eric|roger|steffan|brian|ryan|thomas|daniel|alex|fred|aaron|arthur|gordon|oliver|male|man|david|mark|george|james|jorge|diego|pablo|raul|henri|paul|antonio|ricardo|duarte|madhur|prabhat|hemant|rafiki|daudi)/i;
 const FEMALE = /(female|woman|zira|aria|jenny|samantha|victoria|karen|moira|tessa|susan|hazel|libby|sonia|natasha|catherine|amelie|helena|laura|elena|paulina|monica|luciana|francisca|heera|swara|kalpana|zuri|rehema)/i;
 let voiceCache = null;
 function pickVoice(code) {
-  const vs = speechSynthesis.getVoices().filter((v) => v.lang && v.lang.toLowerCase().startsWith(code.slice(0, 2)));
+  // match on the primary language subtag (fil-PH ≠ fi-FI; Filipino voices may be tagged tl-PH)
+  const base = code.toLowerCase().split('-')[0];
+  const same = (l) => { const p = String(l).toLowerCase().split(/[-_]/)[0]; return p === base || (base === 'fil' && p === 'tl'); };
+  const vs = speechSynthesis.getVoices().filter((v) => v.lang && same(v.lang));
   if (!vs.length) return null;
   const rank = (v) => (MALE.test(v.name) ? 0 : FEMALE.test(v.name) ? 3 : 1) - (/natural|neural|online|premium|enhanced/i.test(v.name) ? 0.5 : 0) + (v.lang.toLowerCase() === code.toLowerCase() ? 0 : 0.2);
   return vs.sort((a, b) => rank(a) - rank(b))[0];
@@ -1218,9 +1270,10 @@ function speak(text) {
   const code = VOICE[lang()] || 'en-US';
   const go2 = () => {
     const v = pickVoice(code);
-    if (!v && speechSynthesis.getVoices().length) toast('🔇 ' + code + ' voice not installed on this device — add it in your phone’s text-to-speech settings.', 5000);
+    if (!v && speechSynthesis.getVoices().length) toast('🔇 ' + t('voice_missing', { lang: LANGS.find(([k]) => k === lang())?.[1] || code }), 6000);
     const female = v && FEMALE.test(v.name) && !MALE.test(v.name);
-    const clean = text.replace(/[^\p{L}\p{N}\s.,:;%+\-–()$]/gu, ' ').replace(/\s+/g, ' ');
+    // keep combining marks (\p{M}) and joiners: Indic and Thai vowel signs live there
+    const clean = text.replace(/[^\p{L}\p{M}\p{N}\s.,:;%+\-–()$\u200c\u200d]/gu, ' ').replace(/\s+/g, ' ');
     const parts = clean.replace(/([.;:])\s+/g, '$1\n').split('\n').filter((x) => x.trim());
     parts.forEach((part) => {
       const u = new SpeechSynthesisUtterance(part);
@@ -1238,7 +1291,7 @@ function speak(text) {
 }
 function stopSpeak() { try { speechSynthesis.cancel(); } catch { /* none */ } }
 function shareURL() {
-  const st = { farm: S.farm, soil: S.soil, soilEdited: S.soilEdited, practice: S.practice, prio: S.prio, cons: S.cons, scen: S.scen, prices: S.prices, lang: S.lang, units: S.units };
+  const st = { farm: S.farm, soil: S.soil, soilEdited: S.soilEdited, practice: S.practice, prio: S.prio, cons: S.cons, scen: S.scen, prices: S.prices, overrides: S.overrides, builder: S.builder, lang: S.lang, units: S.units };
   const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(st)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   return `${location.origin}${location.pathname}#s=${b64}`;
 }
@@ -1290,19 +1343,22 @@ const ACT = {
   share: (a) => { const i = +a.dataset.i; share(res.top[i], i); },
   shareOpen: () => share(openPlan, openPlan?._i ?? 0),
   waOpen: () => { const txt = `FieldShift — ${S.farm?.name || ''}\n${planSpeech(openPlan, openPlan._i ?? 0)}\n${shareURL()}`; window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank', 'noopener'); },
-  print: () => { document.body.classList.add('printing'); setTimeout(() => { window.print(); document.body.classList.remove('printing'); }, 60); },
+  print: () => { setTimeout(() => window.print(), 60); },
   ndvi: async () => {
     if (!S.farm) return;
     const b = $('#ndviBody'); if (b) b.innerHTML = `<div class="skel"></div>`;
-    try { ndvi = await fetchNDVI(S.farm.lat, S.farm.lon); } catch { ndvi = []; }
+    const f0 = S.farm;
+    let v = [];
+    try { v = await fetchNDVI(f0.lat, f0.lon); } catch { v = []; }
+    if (S.farm !== f0) return; // the user moved to another farm meanwhile
+    ndvi = v;
     const b2 = $('#ndviBody'); if (b2) b2.innerHTML = ndviHTML();
   },
   labF: (a) => { labFilter = a.dataset.k; renderLab(); },
   bAdd: () => { const B = S.builder; B.seq.push(res.suit.find((s) => !CROP[s.id].cover && !B.seq.includes(s.id))?.id || 'maize'); B.sec.push('auto'); custom = null; save(); renderLab(); evalCustom(); },
   bDel: (a) => { const B = S.builder; B.seq.splice(+a.dataset.i, 1); B.sec.splice(+a.dataset.i, 1); custom = null; save(); renderLab(); evalCustom(); },
-  bEval: () => evalCustom(),
   settings: () => sheet(settingsHTML()),
-  pref: async (a) => { const k = a.dataset.k; S[k] = k === 'fs' ? +a.dataset.v : a.dataset.v; save(); applyPrefs(); sheet(settingsHTML()); go(S.tab); },
+  pref: async (a) => { const k = a.dataset.k; S[k] = k === 'fs' ? +a.dataset.v : a.dataset.v; save(); applyPrefs(); go(S.tab, true); sheet(settingsHTML()); },
   about: () => { closeSheet(); go('about'); },
   install: () => install(),
   guide: () => sheet(guideHTML()),

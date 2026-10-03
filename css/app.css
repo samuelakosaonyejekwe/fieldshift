@@ -179,7 +179,8 @@ select { border: 1px solid var(--line); border-radius: 10px; background: var(--s
 .skel.tall { height: 60vh; }
 @keyframes sk { to { background-position: -200% 0; } }
 .shift { display: grid; gap: 3px; font-size: .85rem; overflow-x: auto; }
-.sh-row { display: grid; grid-template-columns: minmax(120px, 1.6fr) repeat(4, minmax(46px, 1fr)) 58px; gap: 3px; align-items: center; }
+.sh-row { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr)) minmax(0, .9fr); gap: 3px; align-items: center; }
+@media (max-width: 420px) { .shift { font-size: .78rem; } .sh-head span { font-size: .62rem; } }
 .sh-head span { font-size: .72rem; color: var(--muted); text-align: center; font-weight: 600; }
 .sh-c { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sh-v { text-align: center; border-radius: 6px; padding: .3rem 0; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -373,3 +374,7 @@ body.is-offline .top::after { content: "✈"; position: absolute; right: 6px; bo
 .diag { position: fixed; left: 12px; bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom)); z-index: 95; background: var(--bad); color: #fff; border: 0; border-radius: 999px; padding: .35rem .8rem; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
 @media (min-width: 900px) { .diag { bottom: 16px; } }
 .diag-pre { white-space: pre-wrap; word-break: break-word; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .8rem; font-size: .78rem; max-height: 50vh; overflow: auto; }
+/* narrow phones: the farm name is on the Farm tab, so give the header room for the language menu */
+@media (max-width: 400px) { .farmchip { display: none; } .sel-lang select { max-width: 7rem; } }
+/* right-to-left: numbers with units keep their own direction */
+[dir="rtl"] :is(.kpi b, .met b, .met small, .met em, .sum-k b, .now-k b, .now-k small, .mini b, output, .s-v, .sh-v, .cb-bar b, .tbl td, .pill) { unicode-bidi: plaintext; }

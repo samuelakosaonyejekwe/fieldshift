@@ -37,9 +37,20 @@ async function getJSON(url, ms = 45000) {
 const LS = 'fs-cache-v1:';
 function cacheGet(k) { try { return JSON.parse(localStorage.getItem(LS + k)); } catch { return null; } }
 function cacheSet(k, v) {
-  try { localStorage.setItem(LS + k, JSON.stringify(v)); } catch {
-    try { Object.keys(localStorage).filter((x) => x.startsWith(LS)).slice(0, 5).forEach((x) => localStorage.removeItem(x)); } catch { /* ignore */ }
+  const val = JSON.stringify(v);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { localStorage.setItem(LS + k, val); return true; } catch {
+      // storage full: drop the oldest cached entries (by their saved time) and try again
+      try {
+        const old = Object.keys(localStorage).filter((x) => x.startsWith(LS) && x !== LS + k)
+          .map((x) => { let t = 0; try { t = JSON.parse(localStorage.getItem(x))?.t || 0; } catch { /* unreadable: oldest */ } return [x, t]; })
+          .sort((a, b) => a[1] - b[1]);
+        if (!old.length) return false;
+        old.slice(0, Math.max(1, Math.ceil(old.length / 3))).forEach(([x]) => localStorage.removeItem(x));
+      } catch { return false; }
+    }
   }
+  return false;
 }
 const key = (lat, lon) => `${lat.toFixed(2)},${lon.toFixed(2)}`;
 
@@ -62,6 +73,8 @@ export async function fetchFarmData(lat, lon, { force = false } = {}) {
       getJSON(`${POWER}/climatology/point?parameters=${CP}&community=AG&longitude=${lon}&latitude=${lat}&format=JSON`, 60000),
     ]);
     const out = { lat, lon, monthly: m.properties.parameter, clim: c.properties.parameter, elev: m.geometry.coordinates[2] ?? null, soil: null, t: Date.now() };
+    // at least 10 complete years are needed for normals, trends and the year-by-year replay
+    if (monthsIn(out) < 120) throw new Error('NASA POWER has no usable climate record for this point');
     cacheSet('farm:' + k, out);
     return out;
   } catch (e) {
@@ -74,11 +87,14 @@ export const monthsIn = (raw) => Object.keys(raw?.monthly?.T2M || {}).filter((x)
 export async function fetchSoil(lat, lon) {
   const k = 'soil:' + key(lat, lon);
   const c = cacheGet(k);
-  if (c) return c;
+  if (c && c.none) { if (Date.now() - c.t < 30 * 864e5) return null; } else if (c) return c;
   // SoilGrids masks cities and water: probe the point and nearby farmland in parallel, prefer the closest hit
   const offs = [[0, 0], [0.03, 0], [-0.03, 0], [0, 0.03], [0, -0.03], [0.06, 0.06], [-0.06, -0.06]];
-  const tries = offs.map(([dy, dx]) => fetchSoilAt(+(lat + dy).toFixed(4), +(lon + dx).toFixed(4)).then((r) => (parseSoil(r) ? { ...r, probe: [dy, dx] } : null)).catch(() => null));
-  for (const t of tries) { const r = await t; if (r) { cacheSet(k, r); return r; } }
+  const tries = offs.map(([dy, dx]) => fetchSoilAt(+(lat + dy).toFixed(4), +(lon + dx).toFixed(4)).then((r) => (parseSoil(r) ? { ...r, probe: [dy, dx] } : null)));
+  let failed = false;
+  const tries2 = tries.map((p) => p.catch(() => { failed = true; return null; }));
+  for (const t of tries2) { const r = await t; if (r) { cacheSet(k, r); return r; } }
+  if (!failed && navigator.onLine !== false) cacheSet(k, { none: true, t: Date.now() }); // masked point (city/water)
   return null;
 }
 async function fetchSoilAt(lat, lon) {
@@ -103,9 +119,9 @@ export function parseSoil(sg) {
   if (out.clay == null || out.sand == null) return null;
   return {
     clay: round(out.clay, 0), sand: round(out.sand, 0), silt: round(out.silt ?? 100 - out.clay - out.sand, 0),
-    soc: round(out.soc ?? 10, 1), // g/kg
-    ph: round(out.phh2o ?? 6.5, 1), cec: round(out.cec ?? 15, 0), n: round(out.nitrogen ?? 1, 2), // g/kg
-    bd: round(out.bdod ?? 1.35, 2),
+    soc: round(out.soc ?? DEFAULT_SOIL.soc, 1), // g/kg
+    ph: round(out.phh2o ?? DEFAULT_SOIL.ph, 1), cec: round(out.cec ?? DEFAULT_SOIL.cec, 0), n: round(out.nitrogen ?? DEFAULT_SOIL.n, 2), // g/kg
+    bd: round(out.bdod ?? DEFAULT_SOIL.bd, 2),
   };
 }
 
@@ -160,12 +176,36 @@ export function linreg(xs, ys) {
   let sxy = 0, sxx = 0, syy = 0;
   for (const [x, y] of pts) { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; syy += (y - my) ** 2; }
   const slope = sxy / sxx, icpt = my - slope * mx, r2 = syy ? (sxy * sxy) / (sxx * syy) : 0;
-  // approximate two-sided p-value of the slope (t distribution ≈ normal for n≥20)
+  // two-sided p-value of the slope from Student's t with n-2 degrees of freedom
   const t = Math.sqrt(r2 * (n - 2) / Math.max(1e-9, 1 - r2));
-  const p = 2 * (1 - normCdf(t));
+  const df = n - 2;
+  const p = Math.min(1, betaInc(df / 2, 0.5, df / (df + t * t)));
   return { slope, icpt, r2, p };
 }
-function normCdf(z) { const t = 1 / (1 + 0.2316419 * Math.abs(z)); const d = 0.3989423 * Math.exp(-z * z / 2); const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; }
+// regularised incomplete beta I_x(a,b) (continued fraction, Numerical Recipes 6.4)
+function betaInc(a, b, x) {
+  if (x <= 0) return 0; if (x >= 1) return 1;
+  const lbeta = lgamma(a + b) - lgamma(a) - lgamma(b);
+  const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b + lbeta);
+  if (x > (a + 1) / (a + b + 2)) return 1 - betaInc(b, a, 1 - x);
+  let f = 1, c = 1, d = 0;
+  for (let i = 0; i <= 200; i++) {
+    const m = i % 2 === 0 ? i / 2 : (i - 1) / 2;
+    const num = i === 0 ? 1 : i % 2 === 0 ? (m * (b - m) * x) / ((a + 2 * m - 1) * (a + 2 * m)) : -((a + m) * (a + b + m) * x) / ((a + 2 * m) * (a + 2 * m + 1));
+    d = 1 + num * d; d = Math.abs(d) < 1e-30 ? 1e-30 : d; d = 1 / d;
+    c = 1 + num / c; c = Math.abs(c) < 1e-30 ? 1e-30 : c;
+    const cd = c * d; f *= cd;
+    if (Math.abs(1 - cd) < 1e-10) break;
+  }
+  return (front * (f - 1)) / a;
+}
+function lgamma(z) { // Lanczos approximation
+  const g = 7, cf = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - lgamma(1 - z);
+  z -= 1; let x = cf[0]; for (let i = 1; i < g + 2; i++) x += cf[i] / (z + i);
+  const t = z + g + 0.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+}
 
 // Build the climate object from raw POWER responses.
 export function buildClimate(raw) {
@@ -306,7 +346,8 @@ export async function fetchNDVI(lat, lon, monthsBack = 24) {
   }
   const chunks = [];
   for (let i = 0; i < dates.length; i += 10) chunks.push([dates[i], dates[Math.min(i + 9, dates.length - 1)]]);
-  const res = await Promise.all(chunks.map(([a, b]) => getJSON(`https://modis.ornl.gov/rst/api/v1/MOD13Q1/subset?latitude=${lat}&longitude=${lon}&band=250m_16_days_NDVI&startDate=${a}&endDate=${b}&kmAboveBelow=0&kmLeftRight=0`, 40000).catch(() => null)));
+  let partial = false;
+  const res = await Promise.all(chunks.map(([a, b]) => getJSON(`https://modis.ornl.gov/rst/api/v1/MOD13Q1/subset?latitude=${lat}&longitude=${lon}&band=250m_16_days_NDVI&startDate=${a}&endDate=${b}&kmAboveBelow=0&kmLeftRight=0`, 40000).catch(() => { partial = true; return null; })));
   const pts = [];
   for (const r of res) for (const s of r?.subset || []) {
     const v = s.data?.[0];
@@ -315,7 +356,7 @@ export async function fetchNDVI(lat, lon, monthsBack = 24) {
   pts.sort((a, b) => a.d.localeCompare(b.d));
   // remove cloud dips: value much lower than both neighbours
   const clean = pts.filter((p, i) => !(i > 0 && i < pts.length - 1 && p.v < pts[i - 1].v - 0.15 && p.v < pts[i + 1].v - 0.15));
-  if (clean.length) cacheSet(k, { t: Date.now(), v: clean });
+  if (clean.length && !partial) cacheSet(k, { t: Date.now(), v: clean }); // a gap is shown now but retried next time
   return clean;
 }
 

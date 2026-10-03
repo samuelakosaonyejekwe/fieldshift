@@ -11,16 +11,15 @@ export const LANGS = [
 export const RTL = new Set(['ar', 'fa', 'ur']);
 
 export const EN = {
-  app_tag: 'Crop rotations for a changing climate, powered by NASA Earth observations',
   tab_farm: 'Farm', tab_climate: 'Climate', tab_goals: 'Goals', tab_plans: 'Plans', tab_lab: 'Crop lab',
   // landing
   hero_title: 'Plan rotations that protect your soil and survive tomorrow’s weather',
-  hero_sub: '30 years of NASA satellite climate records, global soil maps and agronomic science — combined for your exact field in seconds. Free, offline-ready, in your language.',
+  hero_sub: '30+ years of NASA satellite climate records, global soil maps and agronomic science — combined for your exact field in seconds. Free, offline-ready, in your language.',
   search_ph: 'Search a village, town or region…', use_gps: 'Use my location', pick_map: 'Pick on map',
   or_demo: 'Or explore a demo farm', demo_note: 'Demo farms work offline. Any point on Earth works when online.',
   coords: 'Coordinates', go: 'Go', lat: 'Latitude', lon: 'Longitude',
   loading_power: 'Downloading 30 years of NASA POWER climate data…', loading_soil: 'Reading SoilGrids soil profile…',
-  loading_engine: 'Simulating thousands of rotations…', loading_done: 'Ready',
+  loading_engine: 'Simulating thousands of rotations…',
   err_fetch: 'Could not reach NASA servers. Check the connection or try a demo farm.', err_gps: 'Location unavailable. Search or pick on the map instead.',
   from_cache: 'Opened from offline cache', offline: 'You are offline — cached farms and demo farms still work.',
   // farm tab
@@ -32,7 +31,7 @@ export const EN = {
   residue: 'Crop residues', res_retained: 'Left on field', res_partial: 'Half removed', res_removed: 'Removed / burned',
   drainage: 'Drainage', dr_good: 'Good', dr_moderate: 'Moderate', dr_poor: 'Poor / floods',
   slope: 'Field slope', salinity: 'Salinity', sal_none: 'None', sal_moderate: 'Moderate', sal_high: 'High',
-  manure: 'Manure / compost', t_ha_yr: 't/ha per year', conservation: 'Contours, terraces or strips',
+  manure: 'Manure / compost', conservation: 'Contours, terraces or strips',
   current_rot: 'What do you grow now?', current_hint: 'Your current sequence is the baseline every plan is compared with.',
   current_cover: 'I already plant cover crops', add_year: 'Add year', remove: 'Remove',
   // climate tab
@@ -45,8 +44,7 @@ export const EN = {
   ndvi_title: 'Satellite greenness at your field (MODIS NDVI)', ndvi_sub: 'Peaks show when vegetation actually grows here — a reality check for the plan.', ndvi_load: 'Load satellite greenness', ndvi_none: 'No greenness data returned for this point.',
   ndvi_peak: 'Greenness peaks in {m}',
   shift_title: 'Crop Shift — who wins and loses as the climate moves', shift_sub: 'Suitability of each crop under the NASA baseline, the last decade, and NASA-trend projections to 2040 and 2050.',
-  era_base: 'Baseline', era_recent: 'Last 10 yrs', era_y2040: '2040', era_y2050: '2050',
-  zone: 'Climate zone', sig: 'statistically significant', notsig: 'not significant',
+  era_base: 'Baseline', era_recent: 'Last 10 yrs', era_y2040: '2040', era_y2050: '2050', sig: 'statistically significant', notsig: 'not significant',
   map_layers: 'NASA layers', l_true: 'True colour (VIIRS)', l_ndvi: 'Vegetation (MODIS NDVI)', l_smap: 'Root-zone soil moisture (SMAP)', l_osm: 'Street map',
   // goals tab
   goals_title: 'What matters most to you?', goals_sub: 'Move the sliders — plans re-rank instantly.',
@@ -60,42 +58,40 @@ export const EN = {
   prices: 'Local prices', n_price: 'Nitrogen fertiliser (USD per kg N)', w_price: 'Irrigation water (USD per mm·ha)',
   // plans tab
   plans_title: 'Recommended rotations', plans_sub: '{n} rotations simulated against {y} years of NASA data in {ms} ms',
-  lens: 'Climate lens', sc_base: 'NASA baseline', sc_recent: 'Last 10 years', sc_y2040: '2040 trend', sc_y2050: '2050 trend', sc_hotdry: '+2 °C, −15% rain', sc_custom: 'Custom',
-  sc_note: 'Climate shifted by {dT} °C and {dP}% rainfall', dT: 'Temperature change', dP: 'Rainfall change',
+  lens: 'Climate lens', sc_base: 'NASA baseline', sc_recent: 'Last 10 years', sc_y2040: '2040 trend', sc_y2050: '2050 trend', sc_hotdry: "{dT}, −15% rain", sc_custom: 'Custom',
+  sc_note: "Climate shifted by {dT} and {dP}% rainfall", dT: 'Temperature change', dP: 'Rainfall change',
   your_current: 'Your current rotation', vs_current: 'vs. now', best: 'Best match', score: 'Score',
   s_soil: 'Soil', s_water: 'Water', s_profit: 'Income', s_resil: 'Resilience', s_simple: 'Simple',
   m_soc: 'Soil carbon in 20 yrs', m_ero: 'Soil loss', m_fert: 'N fertiliser', m_irr: 'Irrigation', m_gm: 'Avg. margin', m_p10: 'Bad-year margin', m_fail: 'Crop failure risk', m_co2: 'Climate impact', m_living: 'Living roots',
-  u_tha: 't/ha/yr', u_kgha: 'kg N/ha/yr', u_mm: 'mm/yr', u_usd: 'USD/ha/yr', u_co2: 't CO₂e/ha/yr',
-  why: 'Why this plan', warnings: 'Watch out', details: 'Open plan', close: 'Close', compare: 'Compare',
+  why: 'Why this plan', details: 'Open plan', close: 'Close', compare: 'Compare',
   calendar: 'Field calendar', wheel: 'Rotation wheel', soc_chart: 'Soil carbon over 20 years', score_vs: 'Scores vs. your current rotation',
   tm_title: 'Time Machine — this plan replayed through real weather, {y0}–{y1}', tm_sub: 'Each square is one real year from NASA records. Green = good season, red = crop failure.',
   tm_cum: 'Cumulative margin', tm_plan: 'This plan', tm_cur: 'Current rotation', tm_fails: '{n} failed seasons',
   year_table: 'Year by year', crop: 'Crop', sow: 'Sow', harvest: 'Harvest', exp_yield: 'Expected yield', then: 'Then',
   fallow: 'Fallow', cover: 'Cover crop', double: 'Second crop', none: '—',
-  share: 'Share', print: 'Report / PDF', speak: 'Read aloud', stop: 'Stop', whatsapp: 'WhatsApp', copied: 'Link copied',
+  share: 'Share', print: 'Report / PDF', speak: 'Read aloud', whatsapp: 'WhatsApp', copied: 'Link copied',
   no_plans: 'No workable rotation found. Try allowing irrigation, more crops, or a different climate lens.',
   cur_fail: 'Your current crops cannot complete a season under this climate.',
-  computing: 'Computing…',
   // reasons
-  r_ncredit: '{crop} leaves ~{n} kg N/ha for the next crop — worth about ${usd}/ha in fertiliser.',
-  r_fert: 'Cuts nitrogen fertiliser by {n} kg/ha/yr vs. now (≈{co2} kg CO₂e avoided).',
+  r_ncredit: "{crop} leaves ~{n} for the next crop — worth about {usd} in fertiliser.",
+  r_fert: "Cuts nitrogen fertiliser by {n} vs. now (≈{co2} CO₂e avoided).",
   r_soc: 'Builds {pct}% more soil carbon than your current rotation over 20 years.',
-  r_erosion: 'Reduces soil erosion by {pct}% ({t} t/ha/yr kept on the field).',
-  r_water: 'Needs {mm} mm/yr less irrigation water.',
-  r_risk: 'Lowers crop-failure risk by {pct} points across the 30-year NASA record.',
-  r_cover: '{crop} protects the soil {from}–{to}, when {mm} mm of rain would otherwise hit bare ground.',
+  r_erosion: "Reduces soil erosion by {pct}% ({t} kept on the field).",
+  r_water: "Needs {mm} less irrigation water.",
+  r_risk: "Lowers crop-failure risk by {pct} points across {n} years of NASA records.",
+  r_cover: "{crop} protects the soil {from}–{to}, when {mm} of rain would otherwise hit bare ground.",
   r_double: 'Adds a second harvest ({crop}) in the same year.',
   r_drought: '{crop} tolerates the dry years NASA recorded in {pct}% of seasons.',
   r_pests: '{n} different plant families break pest and disease cycles.',
   w_fail: '{crop} failed in {pct}% of the historical years — consider a drought/heat-tolerant variety.',
-  w_erosion: 'Soil loss stays high (~{t} t/ha/yr): add contours, mulch or no-till.',
-  w_irr: 'Relies on ~{mm} mm/yr of irrigation.',
+  w_erosion: "Soil loss stays high (~{t}): add contours, mulch or no-till.",
+  w_irr: "Relies on ~{mm} of irrigation.",
   w_repeat: '{crop} follows itself — watch for pests and disease.',
   act_title: 'Action plan — what to do and when',
   act_sub: 'Month-by-month field operations for this rotation. Add them to your phone calendar as reminders.',
   act_sow: 'Prepare the seedbed and sow {crop}.',
   act_inoc: 'Inoculate {crop} seed with rhizobium before sowing — free nitrogen.',
-  act_fert: 'Apply about {n} kg N/ha to {crop}: half at sowing, half 4–6 weeks later.',
+  act_fert: "Apply about {n} to {crop}: half at sowing, half 4–6 weeks later.",
   act_irr: 'Plan about {mm} of irrigation for {crop} in the driest weeks.',
   act_variety: 'Choose a drought- and heat-tolerant {crop} variety; consider crop insurance.',
   act_harvest: 'Harvest {crop}; leave the residues on the soil surface.',
@@ -121,7 +117,6 @@ export const EN = {
   installed: "Installed ✓",
   offline_ready: "Offline pack ready: app + {n} demo farms saved on this device.",
   offline_now: "Offline mode — using data saved on this device.",
-  not_now: "Not now",
   guide: "Guide",
   guide_title: "What can FieldShift do?",
   guide_sub: "Every feature and where to find it.",
@@ -175,7 +170,7 @@ export const EN = {
   g16_d: "Send a plan by WhatsApp or link, hear it read aloud, or print a report.",
   g16_w: "Plans (each card) / Open plan",
   g17_t: "Crop lab",
-  g17_d: "Build your own rotation and score it; see how 40 crops fit your farm; enter your own yields and prices.",
+  g17_d: "Build your own rotation and score it; see how 39 crops fit your farm; enter your own yields and prices.",
   g17_w: "Crop lab",
   g18_t: "Install & offline",
   g18_d: "Install as an app on phone or computer; works offline and in airplane mode.",
@@ -203,6 +198,57 @@ export const EN = {
   rep_csv: "Download spreadsheet (CSV)",
   rep_json: "Download data (JSON)",
   generated: "Generated",
+  per_year: "per year",
+  yr_abbr: "yr",
+  pts: "pts",
+  nav_sections: "Sections",
+  install_add: "Add to Home Screen",
+  include_unsuitable: "{crops}: cannot grow here under this climate, so left out of the plans.",
+  engine_err: "Calculation problem — please try again.",
+  voice_missing: "No {lang} voice is installed on this device. Add one in your phone’s text-to-speech settings.",
+  diag_title: "Diagnostics",
+  copy: "Copy",
+  clean_start: "Clean start",
+  soil_sum_warn: "Sand + silt + clay should add up to about 100% (now {sum}%).",
+  reg_americas: "Americas",
+  reg_africa: "Africa",
+  reg_europe: "Europe",
+  reg_asia: "Asia",
+  reg_oceania: "Oceania",
+  tex_sand: "Sand",
+  tex_loamy_sand: "Loamy sand",
+  tex_sandy_loam: "Sandy loam",
+  tex_loam: "Loam",
+  tex_silt_loam: "Silt loam",
+  tex_silt: "Silt",
+  tex_sandy_clay_loam: "Sandy clay loam",
+  tex_clay_loam: "Clay loam",
+  tex_silty_clay_loam: "Silty clay loam",
+  tex_sandy_clay: "Sandy clay",
+  tex_silty_clay: "Silty clay",
+  tex_clay: "Clay",
+  about_src_power: "NASA POWER: monthly temperature and extremes, corrected rainfall, solar radiation, humidity, wind and root-zone and surface soil wetness from {y0} to last year, near-real-time daily data, and frost-day climatology.",
+  about_src_gibs: "NASA GIBS: true-colour, vegetation (MODIS NDVI) and root-zone soil-moisture (SMAP) map layers.",
+  about_src_modis: "MODIS MOD13Q1 NDVI (250 m, 16-day) through the ORNL DAAC service: observed greening at your field.",
+  about_src_soil: "ISRIC SoilGrids 2.0: sand, silt, clay, organic carbon, pH, bulk density, CEC and nitrogen (0–30 cm).",
+  about_src_crop: "Crop parameters from FAO Ecocrop, FAO-56 crop coefficients and extension literature; place names from Open-Meteo and OpenStreetMap.",
+  method_1: "Reference evapotranspiration and effective rainfall are calculated month by month from NASA POWER.",
+  method_2: "Each crop is placed in the calendar using growing-degree days, frost and heat risk from 30+ years of NASA monthly extremes, a water balance started from NASA root-zone soil wetness, waterlogging, humidity-driven disease, and soil pH, texture and salinity.",
+  method_3: "Every placement is replayed against each real year of the NASA record to estimate the risk of crop failure (the Time Machine).",
+  method_4: "Many rotation sequences are generated; the gaps between crops are filled with the best cover crop, second crop or fallow for your priorities.",
+  method_5: "Each rotation is simulated for 20 years: soil carbon, erosion from NASA-derived rainfall, a nitrogen budget with legume credits, irrigation, nitrate leaching, margins, greenhouse gases and pest breaks.",
+  method_6: "Scores for soil, water, income, resilience and simplicity are weighted by your sliders; climate lenses re-run everything under recent, projected or stress climates.",
+  privacy_title: "Privacy & security",
+  privacy_1: "No account, no tracking, no ads, no analytics. Your farm, soil and choices are stored only on your device.",
+  privacy_2: "Only the field coordinates are sent, straight from your browser, to NASA, ORNL, ISRIC and the place-name services. There is no FieldShift server.",
+  privacy_3: "HTTPS only, a strict content security policy, an integrity-checked map library and checked share links.",
+  privacy_4: "Use “Clean start” to erase everything FieldShift has stored on this device.",
+  endorse: "NASA does not endorse this tool. Made for the 2026 NASA Space Apps Challenge “Field Shift: Adapting Farms with NASA Data”.",
+  boot_fail_title: "FieldShift could not start",
+  boot_fail_body: "Your browser kept an old or damaged copy. One tap fixes it.",
+  boot_fail_hint: "If this keeps happening, update your browser or try another one.",
+  resetting: "Resetting FieldShift…",
+  update_browser: "Please update your browser to use FieldShift.",
   // crop lab
   lab_title: 'Crop lab', lab_sub: 'How every crop fits your farm, and a builder to test your own rotation.',
   builder: 'Rotation builder', builder_sub: 'Pick a crop for each year and compare with the recommendations.',
@@ -210,7 +256,7 @@ export const EN = {
   lim_temp: 'temperature', lim_frost: 'frost', lim_heat: 'heat', lim_water: 'water', lim_wet: 'waterlogging', lim_soil: 'soil', lim_disease: 'humid-season disease', lim_season: 'season too short',
   excellent: 'Excellent', good: 'Good', marginal: 'Marginal', poor: 'Poor', unsuitable: 'Not suited',
   type_cereal: 'Cereal', type_legume: 'Legume', type_oilseed: 'Oilseed', type_fibre: 'Fibre', type_root: 'Root & tuber', type_vegetable: 'Vegetable', type_forage: 'Forage', type_cover: 'Cover crop',
-  fails_in: 'fails {pct}% of years', auto_sec: 'Auto', evaluate: 'Evaluate',
+  fails_in: 'fails {pct}% of years', auto_sec: 'Auto',
   // settings / about
   settings: 'Settings', language: 'Language', units: 'Units', metric: 'Metric', imperial: 'Imperial', theme: 'Theme', th_auto: 'Auto', th_light: 'Light', th_dark: 'Dark',
   text_size: 'Text size', install: 'Install app', about: 'About & data', saved_farms: 'Saved farms', save_farm: 'Save farm', reset: 'Reset',
@@ -234,7 +280,7 @@ let code = 'en';
 export async function setLang(c) {
   code = LANGS.some(([k]) => k === c) ? c : 'en';
   if (code === 'en') { dict = EN; return; }
-  try { const m = await import(`./lang/${code}.js?v=1.9.4`); dict = { ...EN, ...m.default }; } catch { dict = EN; code = 'en'; }
+  try { const m = await import(`./lang/${code}.js?v=1.10.0`); dict = { ...EN, ...m.default }; } catch { dict = EN; code = 'en'; }
 }
 export const lang = () => code;
 export function t(k, p) {
@@ -243,10 +289,22 @@ export function t(k, p) {
   return s;
 }
 export const cropName = (id) => t('c_' + id);
+// Greek month names stand alone in the UI, so they need the nominative (Intl only gives the genitive)
+const EL_LONG = ['Ιανουάριος', 'Φεβρουάριος', 'Μάρτιος', 'Απρίλιος', 'Μάιος', 'Ιούνιος', 'Ιούλιος', 'Αύγουστος', 'Σεπτέμβριος', 'Οκτώβριος', 'Νοέμβριος', 'Δεκέμβριος'];
 export function monthName(m, style = 'short') {
-  try { return new Intl.DateTimeFormat(code, { month: style, timeZone: 'UTC' }).format(new Date(Date.UTC(2021, ((m % 12) + 12) % 12, 15))); } catch { return 'JFMAMJJASOND'[((m % 12) + 12) % 12]; }
+  const i = ((m % 12) + 12) % 12;
+  if (code === 'el' && style === 'long') return EL_LONG[i];
+  // always the Gregorian calendar (Persian/Thai locales would otherwise switch calendars)
+  try { return new Intl.DateTimeFormat(code, { month: style, timeZone: 'UTC', calendar: 'gregory' }).format(new Date(Date.UTC(2021, i, 15))); } catch { return 'JFMAMJJASOND'[i]; }
 }
+// Browser language → app language: checks every preferred language and understands 3-letter / legacy tags
+const ALIAS = { fil: 'tl', in: 'id', gaz: 'om', orm: 'om', zsm: 'ms', swh: 'sw', pes: 'fa', prs: 'fa', cmn: 'zh', yue: 'zh', arb: 'ar' };
 export function guessLang() {
-  const n = (navigator.language || 'en').slice(0, 2).toLowerCase();
-  return LANGS.some(([k]) => k === n) ? n : 'en';
+  const prefs = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en']);
+  for (const l of prefs) {
+    let p = String(l).toLowerCase().split(/[-_]/)[0];
+    p = ALIAS[p] || p;
+    if (LANGS.some(([k]) => k === p)) return p;
+  }
+  return 'en';
 }

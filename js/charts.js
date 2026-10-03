@@ -1,7 +1,7 @@
 // Tiny dependency-free SVG chart kit. Every chart returns an SVG/HTML string;
 // tooltips are driven by data-tip attributes (see bindTips).
-import { famColor, CROP } from './crops.js?v=1.9.4';
-import { cropName, monthName, t } from './i18n.js?v=1.9.4';
+import { famColor, CROP } from './crops.js?v=1.10.0';
+import { cropName, monthName, t } from './i18n.js?v=1.10.0';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // charts are drawn at the on-screen pixel width so text stays legible on phones
@@ -123,6 +123,8 @@ export function linesChart(series, xlab, unit, fmtv = (v) => fx(v, 1)) {
 
 // Cumulative margin lines + yearly outcome strip (Time Machine)
 export function timeMachine(plan, cur, U) {
+  // compare like with like: only the years both rotations have on record
+  if (cur) { const ys = new Set(cur.map((h) => h.y)); plan = plan.filter((h) => ys.has(h.y)); const ps = new Set(plan.map((h) => h.y)); cur = cur.filter((h) => ps.has(h.y)); }
   const W = CW, H = 230, P = { l: 56, r: 14, t: 20, b: 64 };
   const yrs = plan.map((h) => h.y);
   const cum = (arr) => { let a = 0; return arr.map((h) => (a += h.income)); };
@@ -173,7 +175,7 @@ export function wheel(r, size = 220, label = true) {
       const ri = r0 + y * ring + 1, ro = r0 + (y + 1) * ring - 1;
       const col = o ? famColor(o.id) : 'var(--bare)';
       const op = o ? (o.cover ? 0.55 : o.dorm ? 0.7 : 1) : 1;
-      s += `<path d="${arc(a0, a1, ri, ro)}" fill="${col}" opacity="${op}" ${o?.cover ? 'class="hatch"' : ''} data-tip="${esc(`${t('yr')} ${y + 1} · ${monthName(m, 'long')}<br>${o ? (o.cover ? '🌱 ' : '') + cropName(o.id) : t('fallow')}`)}"/>`;
+      s += `<path d="${arc(a0, a1, ri, ro)}" fill="${col}" opacity="${op}" data-tip="${esc(`${t('yr')} ${y + 1} · ${monthName(m, 'long')}<br>${o ? (o.cover ? '🌱 ' : '') + cropName(o.id) : t('fallow')}`)}"/>`;
     }
   }
   if (label) for (let m = 0; m < 12; m++) {
