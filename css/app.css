@@ -386,3 +386,4 @@ body.is-offline .top::after { content: "✈"; position: absolute; right: 6px; bo
 @media (max-width: 400px) { .farmchip { display: none; } .sel-lang select { max-width: 7rem; } }
 /* right-to-left: numbers with units keep their own direction */
 [dir="rtl"] :is(.kpi b, .met b, .met small, .met em, .sum-k b, .now-k b, .now-k small, .mini b, output, .s-v, .sh-v, .cb-bar b, .tbl td, .pill) { unicode-bidi: plaintext; }
+.cb-keyed { margin-top: .5rem; }

@@ -1,5 +1,5 @@
 // FieldShift service worker: app shell offline, NASA/soil data network-first with cache fallback.
-const APP_V = '1.11.0';
+const APP_V = '1.11.1';
 const VER = 'fieldshift-' + APP_V;
 // versioned files (?v=APP_V) never change: they are cached exactly and never swapped for another version
 const V = (u) => `${u}?v=${APP_V}`;

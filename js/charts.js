@@ -1,7 +1,7 @@
 // Tiny dependency-free SVG chart kit. Every chart returns an SVG/HTML string;
 // tooltips are driven by data-tip attributes (see bindTips).
-import { famColor, CROP } from './crops.js?v=1.11.0';
-import { cropName, cropLabel, monthName, t } from './i18n.js?v=1.11.0';
+import { famColor, CROP } from './crops.js?v=1.11.1';
+import { cropName, cropLabel, monthName, t } from './i18n.js?v=1.11.1';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // charts are drawn at the on-screen pixel width so text stays legible on phones
@@ -211,7 +211,7 @@ const sameOcc = (a, b) => (!a && !b) || (a && b && a.id === b.id && a.cover === 
 // Grouped horizontal bars: criteria x (plan, current)
 export function compareBars(rows, names) {
   const cols = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
-  let h = '<div class="cbars">';
+  let h = '<div class="cbars cb-keyed">';
   for (const row of rows) {
     h += `<div class="cb-row"><div class="cb-l">${esc(row.label)}</div><div class="cb-bars">`;
     row.vals.forEach((v, i) => {
@@ -220,7 +220,8 @@ export function compareBars(rows, names) {
     });
     h += '</div></div>';
   }
-  return h + '</div>' + legend(names.map((n, i) => [n, cols[i], 'bar']));
+  // the key goes first so the colours are explained before the bars
+  return legend(names.map((n, i) => [n, cols[i], 'bar'])) + h + '</div>';
 }
 
 // Crop shift heat table
