@@ -1,6 +1,6 @@
 // Runs the rotation engine off the main thread so the interface stays smooth on any phone.
-import { buildClimate } from './data.js?v=1.9.2';
-import { recommend, evaluateCustom, cropShift, finalize, weights } from './engine.js?v=1.9.2';
+import { buildClimate } from './data.js?v=1.9.3';
+import { recommend, evaluateCustom, cropShift, finalize, weights } from './engine.js?v=1.9.3';
 
 let key = null, base = null;
 function getBase(raw) {

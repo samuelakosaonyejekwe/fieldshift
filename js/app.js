@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.2';
-import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.2';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.2';
-import * as CH from './charts.js?v=1.9.2';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.3';
+import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.3';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.3';
+import * as CH from './charts.js?v=1.9.3';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.9.2';
+export const APP_VERSION = '1.9.3';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
@@ -121,7 +121,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js?v=1.9.2', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.9.3', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -138,7 +138,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js?v=1.9.2');
+  engineMod = engineMod || await import('./engine.js?v=1.9.3');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
@@ -1084,6 +1084,13 @@ function renderAbout() {
     <li>Each rotation is simulated for 20 years: soil organic carbon (two-pool, equilibrium-calibrated), RUSLE erosion with NASA-derived rainfall erosivity, nitrogen budget with legume credits, irrigation, nitrate-leaching exposure, margins, greenhouse-gas balance and pest-break rules.</li>
     <li>Scores for soil, water, income, resilience and simplicity are weighted by your sliders. Climate lenses re-run everything under recent, projected (NASA-observed trend to 2040/2050) or stress climates.</li>
   </ol>
+  <h2>🔒 Privacy & security</h2>
+  <ul>
+    <li>No account, no tracking, no ads, no analytics. Your farm, soil and choices are stored only on your device.</li>
+    <li>Only the field coordinates are sent — directly from your browser — to NASA POWER, NASA/ORNL MODIS, ISRIC SoilGrids and the place-name services. Nothing passes through a FieldShift server (there is none).</li>
+    <li>HTTPS-only, strict Content Security Policy, integrity-checked map library, sanitised share links, no third-party scripts.</li>
+    <li>Use <a href="?reset">Clean start</a> to erase everything FieldShift stored on this device.</li>
+  </ul>
   <p class="note">${esc(t('disclaimer'))}</p>
   <p class="muted small">NASA does not endorse this tool. Built for the 2026 NASA Space Apps Challenge — “Field Shift: Adapting Farms with NASA Data”.</p>
   </article>`;
@@ -1137,8 +1144,12 @@ let L = null;
 async function loadLeaflet() {
   if (L) return L;
   await new Promise((ok, bad) => {
-    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.append(css);
-    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = ok; s.onerror = bad; document.head.append(s);
+    // pinned version + Subresource Integrity: a modified copy on the CDN is refused by the browser
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    css.integrity = 'sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H'; css.crossOrigin = 'anonymous'; document.head.append(css);
+    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.integrity = 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH'; s.crossOrigin = 'anonymous';
+    s.onload = ok; s.onerror = bad; document.head.append(s);
   });
   L = window.L; return L;
 }

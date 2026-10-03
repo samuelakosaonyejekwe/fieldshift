@@ -10,7 +10,7 @@ for f in glob.glob('js/*.js'):
     s = re.sub(r"APP_VERSION = '[\w.]+'", f"APP_VERSION = '{V}'", s)
     open(f, 'w', encoding='utf-8').write(s)
 h = open('index.html', encoding='utf-8').read()
-h = re.sub(r'(js/app\.js|css/app\.css)(\?v=[\w.]+)?"', lambda m: f'{m.group(1)}?v={V}"', h)
+h = re.sub(r'(js/app\.js|js/boot\.js|css/app\.css)(\?v=[\w.]+)?"', lambda m: f'{m.group(1)}?v={V}"', h)
 open('index.html', 'w', encoding='utf-8').write(h)
 w = open('sw.js', encoding='utf-8').read()
 w = re.sub(r"const VER = 'fieldshift-[\w.]+';", f"const VER = 'fieldshift-{V}';", w)
