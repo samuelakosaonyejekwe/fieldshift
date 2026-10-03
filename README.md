@@ -16,12 +16,15 @@ Pick a field (search, GPS, map or demo farm) → FieldShift pulls three decades 
 - **Explains itself** — plain-language reasons for every plan, read aloud in the farmer's language, shareable by link or WhatsApp, printable as a report.
 - **Season so far** — the last 90 days of NASA POWER near-real-time data versus normal, with advice for the current season.
 - **Practical action plan** — month-by-month tasks (sow, inoculate, fertilise, irrigate, cover crop, harvest) exportable to any phone calendar.
-- **Runs everywhere, for everyone** — no server, no sign-up, no framework; about 95 KB gzipped for the whole app (plus a ~10 KB language file); installable on Android, iPhone/iPad and desktop; works offline and in airplane mode (23 demo farms pre-cached); NASA data refreshes automatically when online.
+- **Runs everywhere, for everyone** — no server, no sign-up, no framework; about 108 KB gzipped for the app plus one 13–17 KB language file; installable on Android, iPhone/iPad and desktop; NASA data refreshes automatically when online.
 - **38 languages** — English, 中文, हिन्दी, Español, Français, العربية, বাংলা, Português, Русский, اردو, Bahasa Indonesia, Deutsch, 日本語, Kiswahili, मराठी, తెలుగు, Türkçe, தமிழ், Tiếng Việt, فارسی, Hausa, ਪੰਜਾਬੀ, Italiano, Yorùbá, Igbo, አማርኛ, Ελληνικά, 한국어, ไทย, Українська, Polski, Nederlands, Filipino, Bahasa Melayu, नेपाली, Soomaali, isiZulu, Afaan Oromoo — with right-to-left layouts and a warm baritone read-aloud voice.
 - **Report builder** — choose sections (farm, soil, NASA climate, season so far, crop suitability, plan comparison, plan detail, action plan, Time Machine, methods), the plan to feature and how many plans to compare; export as print/PDF, CSV spreadsheet or JSON.
 - **Secure & private** — no accounts, no tracking, no backend; strict Content Security Policy, integrity-checked map library, sanitised share links, anti-clickjacking, HTTPS/HSTS. See [SECURITY.md](SECURITY.md).
 - **Self-healing updates** — version-stamped files, automatic updates, on-screen diagnostics, and a clean-start link (`?reset`).
-- **In-app guide** (❓ in the top bar) lists every feature and where to find it.
+- **Offline & airplane mode** — after the first online visit the app, all 38 languages and the 23 demo farms (about 360 KB) are saved on the device; a ✈ status badge and an *Offline & airplane mode* card show progress ("77 of 77 files") and offer a one-tap *Save everything for offline use*. Farms you open are saved too. New places, live NASA updates, satellite greenness and map pictures need internet.
+- **Crop varieties** — winter and spring cereals and canola (vernalisation, autumn sowing), frost-hardy Andean potatoes; the engine chooses the variety that produces most on the farm.
+- **Self-explanatory** — every chart has a "What do the colours mean?" note, technical terms have tap-to-read definitions, the rotation wheel has a live colour key, and practical hints explain soil values, slope, salinity, drainage, manure, nitrogen (kg N vs. fertiliser) and water prices.
+- **In-app guide** (❓ in the top bar) lists every feature and where to find it, with a full Glossary and Colour guide.
 
 ## NASA & open data used
 | Source | Used for |
@@ -42,9 +45,11 @@ Pick a field (search, GPS, map or demo farm) → FieldShift pulls three decades 
 All computation runs on the user's device in a Web Worker. Data is fetched directly from NASA and ISRIC by the user's browser and cached for offline use.
 
 ## Release
+Requires Python 3 and Node.js (`package.json` only declares `"type": "module"` so Node can import `js/*.js` for the release tool and tests).
 ```
-python3 tools_release.py <version>   # stamps all module URLs + service-worker cache, then commit & push
+python3 tools_release.py <version>   # then commit & push
 ```
+The tool stamps every module URL and the service-worker cache with the version, embeds the start-up screen texts from the language files, regenerates the service worker's language and demo-farm lists from `js/i18n.js` and `data/demo/`, and refuses to release if read-aloud voices or demo-farm practices are missing for any language or farm.
 
 ## Run locally
 Any static server works:

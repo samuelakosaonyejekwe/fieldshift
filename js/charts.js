@@ -1,7 +1,7 @@
 // Tiny dependency-free SVG chart kit. Every chart returns an SVG/HTML string;
 // tooltips are driven by data-tip attributes (see bindTips).
-import { famColor, CROP } from './crops.js?v=1.12.0';
-import { cropName, cropLabel, monthName, t } from './i18n.js?v=1.12.0';
+import { famColor, CROP } from './crops.js?v=1.13.0';
+import { cropName, cropLabel, monthName, t } from './i18n.js?v=1.13.0';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // charts are drawn at the on-screen pixel width so text stays legible on phones
@@ -197,7 +197,7 @@ export function calendar(r) {
       let k = m + 1;
       while (k < 12 && sameOcc(r.occ[y * 12 + k], o)) k++;
       const span = k - m;
-      const name = o ? cropName(o.id) : t('fallow');
+      const name = o ? cropLabel(o.id, o.v) : t('fallow');
       const ic = o ? CROP[o.id].ic : '';
       h += `<span class="cal-c ${o ? (o.cover ? 'is-cover' : '') : 'is-bare'}" style="grid-column:span ${span};--c:${o ? famColor(o.id) : 'transparent'}" data-tip="${esc(name)}">${span >= 2 || name.length < 6 ? `${ic} ${esc(name)}` : ic}</span>`;
       m = k;
@@ -256,6 +256,7 @@ export function bindTips(root = document) {
   const show = (el, x, y) => {
     tip.innerHTML = el.getAttribute('data-tip');
     tip.hidden = false;
+    if (el.classList.contains('def')) el.setAttribute('aria-describedby', 'tip'); // screen readers announce the definition
     const r = tip.getBoundingClientRect();
     const px = Math.min(window.innerWidth - r.width - 8, Math.max(8, x + 14));
     const py = y - r.height - 12 < 8 ? y + 18 : y - r.height - 12;
@@ -280,5 +281,6 @@ export function bindTips(root = document) {
     show(el, r.left, r.top);
   });
   root.addEventListener('focusout', (e) => { if (e.target.closest?.('.def[data-tip]')) tip.hidden = true; });
-  window.addEventListener('scroll', () => { tip.hidden = true; }, { passive: true });
+  // any scroll (page or a scrolling panel) hides the tip so it never floats away from its term
+  document.addEventListener('scroll', () => { tip.hidden = true; cur?.removeAttribute?.('aria-describedby'); }, { capture: true, passive: true });
 }

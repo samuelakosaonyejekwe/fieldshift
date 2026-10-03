@@ -1,13 +1,14 @@
 // FieldShift service worker: app shell offline, NASA/soil data network-first with cache fallback.
-const APP_V = '1.12.0';
+const APP_V = '1.13.0';
 const VER = 'fieldshift-' + APP_V;
 // versioned files (?v=APP_V) never change: they are cached exactly and never swapped for another version
 const V = (u) => `${u}?v=${APP_V}`;
 const PLAIN = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable.png', 'icons/apple-touch-icon.png'];
 const VERSIONED = ['css/app.css', 'js/app.js', 'js/boot.js', 'js/data.js', 'js/engine.js', 'js/crops.js', 'js/charts.js', 'js/i18n.js', 'js/worker.js'].map(V);
-const LANG_FILES = ['es', 'fr', 'pt', 'sw', 'hi', 'ar', 'zh', 'bn', 'ru', 'ur', 'id', 'de', 'ja', 'tr', 'vi', 'fa', 'it', 'ha', 'yo', 'ig', 'am', 'ta', 'te', 'mr', 'pa', 'el', 'ko', 'th', 'uk', 'pl', 'nl', 'tl', 'ms', 'ne', 'so', 'zu', 'om'].map((l) => V(`js/lang/${l}.js`));
+const LANG_FILES = ['zh', 'hi', 'es', 'fr', 'ar', 'bn', 'pt', 'ru', 'ur', 'id', 'de', 'ja', 'sw', 'mr', 'te', 'tr', 'ta', 'vi', 'fa', 'ha', 'pa', 'it', 'yo', 'ig', 'am', 'el', 'ko', 'th', 'uk', 'pl', 'nl', 'tl', 'ms', 'ne', 'so', 'zu', 'om'].map((l) => V(`js/lang/${l}.js`));
 // offline pack: every demo farm (fetched in the background after install)
 const DEMOS = ["addis", "bangladesh", "cordoba", "france", "free_state", "fresno", "heilongjiang", "iowa", "java", "kano", "lilongwe", "matogrosso", "mekong", "nakuru", "nile", "pampas", "peru", "punjab", "saskatoon", "sinaloa", "tamale", "ukraine", "wagga"].map((d) => `data/demo/${d}.json`);
+const DEMO_CACHE = 'fs-demos-' + APP_V; // demo data is refreshed with each release
 const DATA_MAX = 80; // NASA/soil responses kept for offline use
 // bypass the HTTP cache so a fresh release never stores yesterday's copy
 const fresh = (u) => new Request(u, { cache: 'reload' });
@@ -21,30 +22,37 @@ self.addEventListener('install', (e) => {
 const OFFLINE_SET = () => [...PLAIN, ...VERSIONED, ...LANG_FILES, ...DEMOS];
 async function offlineStatus() {
   let n = 0;
-  for (const u of OFFLINE_SET()) if (await caches.match(u)) n++;
-  return { type: 'offline-status', n, total: OFFLINE_SET().length };
+  const app = await caches.open(VER), demos = await caches.open(DEMO_CACHE);
+  for (const u of OFFLINE_SET()) if (await (DEMOS.includes(u) ? demos : app).match(u)) n++;
+  return { type: 'offline-status', n, total: OFFLINE_SET().length, busy: !!packing };
 }
 async function broadcast(msg) { (await self.clients.matchAll({ includeUncontrolled: true })).forEach((cl) => cl.postMessage(msg)); }
+// one offline download at a time: concurrent requests (several tabs, auto start + button) share it
+let packing = null;
+function offlinePack() {
+  packing = packing || (async () => {
+    const app = await caches.open(VER), demos = await caches.open(DEMO_CACHE);
+    const all = OFFLINE_SET();
+    const missing = [];
+    for (const u of all) if (!(await (DEMOS.includes(u) ? demos : app).match(u))) missing.push(u);
+    let done = all.length - missing.length;
+    for (const u of missing) {
+      try { await (DEMOS.includes(u) ? demos : app).add(fresh(u)); done++; } catch { /* retried next time */ }
+      await broadcast({ type: 'offline-status', n: done, total: all.length, busy: true });
+    }
+    // older demo copies go only once this release's set is complete
+    if ((await demos.keys()).length >= DEMOS.length) for (const k of await caches.keys()) if (k.startsWith('fs-demos') && k !== DEMO_CACHE) await caches.delete(k);
+    await broadcast({ ...(await offlineStatus()), busy: false });
+  })().finally(() => { packing = null; });
+  return packing;
+}
 self.addEventListener('message', (e) => {
   if (e.data === 'offline-status') e.waitUntil(offlineStatus().then(broadcast));
-  if (e.data === 'offline-pack') {
-    // download whatever is missing, reporting progress as it goes
-    e.waitUntil((async () => {
-      const app = await caches.open(VER), demos = await caches.open('fs-demos');
-      const all = OFFLINE_SET();
-      let n = 0;
-      for (const u of all) {
-        if (!(await caches.match(u))) { try { await (DEMOS.includes(u) ? demos : app).add(fresh(u)); } catch { /* retried next time */ } }
-        if (await caches.match(u)) n++;
-        await broadcast({ type: 'offline-status', n, total: all.length, busy: true });
-      }
-      await broadcast({ ...(await offlineStatus()), busy: false });
-      await broadcast({ type: 'pack', n: (await demos.keys()).length, total: DEMOS.length });
-    })());
-  }
+  if (e.data === 'offline-pack') e.waitUntil(offlinePack());
+  if (e.data === 'version') e.waitUntil(broadcast({ type: 'version', v: APP_V }));
 });
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VER && k !== 'fs-data' && k !== 'fs-demos').map((k) => caches.delete(k))))
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VER && k !== 'fs-data' && !k.startsWith('fs-demos')).map((k) => caches.delete(k))))
     .then(() => pruneData())
     .then(() => self.clients.claim()));
 });
@@ -70,7 +78,8 @@ self.addEventListener('fetch', (e) => {
   if (url.origin === location.origin) {
     // versioned app files: exact match from cache, else network (never another version)
     if (url.searchParams.has('v')) {
-      e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((r) => { if (r.ok) { const cl = r.clone(); caches.open(VER).then((c) => c.put(req, cl)); } return r; })));
+      const mine = url.searchParams.get('v') === APP_V; // never store content under another release's version
+      e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((r) => { if (r.ok && mine) { const cl = r.clone(); caches.open(VER).then((c) => c.put(req, cl)); } return r; })));
       return;
     }
     // pages and other files: network first (fresh after every deploy), 3 s fallback to the cached copy
@@ -81,6 +90,7 @@ self.addEventListener('fetch', (e) => {
       fetch(req).then((r) => {
         clearTimeout(timer);
         if (r.ok) { const cl = r.clone(); caches.open(VER).then((c) => c.put(req, cl)); }
+        else if (req.mode === 'navigate') { fromCache().then((hit) => { if (!done) { done = true; resolve(hit || r); } }); return; }
         if (!done) { done = true; resolve(r); }
       }).catch(() => { clearTimeout(timer); fromCache().then((hit) => { if (!done) { done = true; resolve(hit || Response.error()); } }); });
     }));

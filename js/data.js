@@ -82,7 +82,7 @@ export async function fetchFarmData(lat, lon, { force = false } = {}) {
     throw e;
   }
 }
-export const monthsIn = (raw) => Object.keys(raw?.monthly?.T2M || {}).filter((x) => raw.monthly.T2M[x] > -900).length;
+export const monthsIn = (raw) => Object.keys(raw?.monthly?.T2M || {}).filter((x) => /(0[1-9]|1[0-2])$/.test(x) && raw.monthly.T2M[x] > -900).length;
 
 export async function fetchSoil(lat, lon) {
   const k = 'soil:' + key(lat, lon);
@@ -93,7 +93,7 @@ export async function fetchSoil(lat, lon) {
   const tries = offs.map(([dy, dx]) => fetchSoilAt(+(lat + dy).toFixed(4), +(lon + dx).toFixed(4)).then((r) => (parseSoil(r) ? { ...r, probe: [dy, dx] } : null)));
   let failed = false;
   const tries2 = tries.map((p) => p.catch(() => { failed = true; return null; }));
-  for (const t of tries2) { const r = await t; if (r) { cacheSet(k, r); return r; } }
+  for (const t of tries2) { const r = await t; if (r) { cacheSet(k, { ...r, t: Date.now() }); return r; } }
   if (!failed && navigator.onLine !== false) cacheSet(k, { none: true, t: Date.now() }); // masked point (city/water)
   return null;
 }
@@ -312,7 +312,9 @@ export async function fetchRecent(lat, lon) {
   if (c && Date.now() - c.t < 12 * 3600e3) return c.v;
   const d = (x) => x.toISOString().slice(0, 10).replace(/-/g, '');
   const end = new Date(Date.now() - 2 * 864e5), start = new Date(end.getTime() - 92 * 864e5);
-  const r = await getJSON(`${POWER}/daily/point?parameters=PRECTOTCORR,T2M,GWETROOT&community=AG&longitude=${lon}&latitude=${lat}&start=${d(start)}&end=${d(end)}&format=JSON`, 30000);
+  let r;
+  try { r = await getJSON(`${POWER}/daily/point?parameters=PRECTOTCORR,T2M,GWETROOT&community=AG&longitude=${lon}&latitude=${lat}&start=${d(start)}&end=${d(end)}&format=JSON`, 30000); }
+  catch (e) { if (c?.v) return c.v; throw e; } // offline or NASA unreachable: the last saved 90 days
   const P = r.properties.parameter;
   const days = Object.keys(P.T2M).filter((k2) => ok(P.T2M[k2]) && ok(P.PRECTOTCORR[k2])).sort().slice(-90);
   const v = days.map((k2) => ({ d: k2, m: +k2.slice(4, 6) - 1, P: P.PRECTOTCORR[k2], T: P.T2M[k2], GW: ok(P.GWETROOT[k2]) ? P.GWETROOT[k2] : NaN }));
@@ -356,6 +358,7 @@ export async function fetchNDVI(lat, lon, monthsBack = 24) {
   pts.sort((a, b) => a.d.localeCompare(b.d));
   // remove cloud dips: value much lower than both neighbours
   const clean = pts.filter((p, i) => !(i > 0 && i < pts.length - 1 && p.v < pts[i - 1].v - 0.15 && p.v < pts[i + 1].v - 0.15));
+  if (partial && c?.v?.length > clean.length) return c.v; // an incomplete download never replaces a fuller saved series
   if (clean.length && !partial) cacheSet(k, { t: Date.now(), v: clean }); // a gap is shown now but retried next time
   return clean;
 }

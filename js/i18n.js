@@ -115,7 +115,6 @@ export const EN = {
   install_ios: "On iPhone / iPad: tap the Share button {share} in Safari, then “Add to Home Screen” {add}.",
   install_other: "In your browser menu choose “Install app” or “Add to Home screen”. On iPhone use Safari.",
   installed: "Installed ✓",
-  offline_ready: "Offline pack ready: app + {n} demo farms saved on this device.",
   offline_now: "Offline mode — using data saved on this device.",
   guide: "Guide",
   guide_title: "What can FieldShift do?",
@@ -284,10 +283,10 @@ export const EN = {
   gl_ndvi: "NDVI: a satellite measure of how green and dense the plants are.",
   gl_score: "Score: how well a plan matches your priorities, out of 100.",
   gl_soc: "Soil carbon: organic matter in the soil. More carbon means healthier, more fertile soil that holds more water.",
-  gl_ero: "Soil loss: soil washed away by rain each year. Below about 5 t/ha a year is considered tolerable.",
+  gl_ero: "Soil loss: soil washed away by rain each year. Below about {t} is considered tolerable.",
   gl_fert: "N fertiliser: nitrogen fertiliser still needed after what legumes and the soil supply.",
   gl_irr: "Irrigation: extra water needed each year on top of rain.",
-  gl_gm: "Average margin: money left per hectare per year after seed, fertiliser and water costs, averaged over real NASA years.",
+  gl_gm: "Average margin: money left each year on each hectare or acre (as set in Settings) after seed, fertiliser and water costs, averaged over real NASA years.",
   gl_p10: "Bad-year margin: what you would still earn in a bad year (only 1 year in 10 is worse).",
   gl_fail: "Crop failure risk: the share of past years in which the weather cut a crop to less than half of its normal harvest.",
   gl_co2: "Climate impact: greenhouse gas removed (+) or added (−) per hectare each year through soil carbon and fertiliser. t = tonnes; CO₂e = all greenhouse gases counted as carbon dioxide.",
@@ -302,10 +301,10 @@ export const EN = {
   gl_variety: "Variety type: winter types are sown in autumn and need a cold spell; spring types do not. Andean potatoes survive frost while growing.",
   gl_pts: "pts (percentage points): going from 10% to 15% is +5 pts.",
   gl_units: "Units: ha = hectare (100 × 100 m, about 2.5 acres); t = tonne (1,000 kg); 1 mm of rain = 1 litre on each square metre; USD = US dollars.",
-  gl_kgn: "kg N: kilograms of the nitrogen itself, not of the fertiliser bag. 100 kg N ≈ 220 kg urea or ≈ 370 kg CAN.",
+  gl_kgn: "kg N (or lb N): the weight of the nitrogen itself, not of the fertiliser bag. 100 kg N ≈ 220 kg of urea or 370 kg of CAN (the same ratios apply in pounds).",
   gl_rhizo: "Rhizobium: helpful bacteria (sold as a powder) put on legume seed so the crop adds more nitrogen to the soil.",
   gl_zone: "Climate zone: how warm (tropical, subtropical, temperate, cold-winter) and how wet (arid to humid) your farm is.",
-  gl_tc: "t C/ha: tonnes of carbon stored in each hectare of topsoil. The line moves up and down as different crops leave more or less residue.",
+  gl_tc: "Soil carbon chart: tonnes of carbon (t C) stored in the topsoil of each hectare or acre. The line moves up and down as different crops leave more or less residue.",
   hint_prio: "0 = does not matter to me, 5 = very important. Plans are ranked using these weights.",
   hint_presets: "A preset sets the sliders below for that goal; you can still adjust them.",
   hint_wprice: "Cost of putting 1 mm of water on 1 hectare (10,000 litres).",
@@ -318,7 +317,7 @@ export const EN = {
   hint_slope: "A 1 m drop over 100 m is 1%.",
   hint_sal: "White crusts or patches of stunted plants suggest moderate or high salinity.",
   hint_drain: "Poor = water stays on the field for days after rain.",
-  hint_manure: "1 t/ha is about 20 wheelbarrows per hectare.",
+  hint_manure: "One tonne of manure or compost is about 20 wheelbarrows.",
   hint_then: "Then = what you plant straight after this harvest: 🌱 a cover crop to protect the soil, ➕ a second crop to sell, or nothing (bare soil).",
   hint_auto: "Auto = FieldShift picks the best cover crop, second crop or bare period for your goals.",
   hint_len: "Years before the crop sequence repeats. Auto = FieldShift tries 1 to 4 years and shows the best.",
@@ -327,7 +326,7 @@ export const EN = {
   hint_tm2: "Paler squares = weaker years. The lines show the total money earned per hectare since the first year.",
   hint_cards: "The small wheel and the coloured edge of each crop show its plant family (key in Open plan). “+ crop” is the cover crop or second crop after harvest. Orange ring: what you grow now; green ring: a plan.",
   hint_table: "Then = what grows after harvest in the same year: a cover crop, a second crop or bare soil.",
-  adds_n: "adds about {n} kg N/ha to the soil",
+  adds_n: "adds about {n} to the soil",
   all_crops: "All crops",
   map_tap: "Tap your field on the map, then press Go.",
   map_key: "Plant greenness: brown = bare, dark green = dense crops. Soil wetness: yellow/brown = dry, blue = wet.",
@@ -350,17 +349,20 @@ export const EN = {
   off_steps: "1) While online, tap “Save everything for offline use” (and “Install app” if you like). 2) Wait for “Ready offline ✓”. 3) Now it works anywhere — no signal, no data, airplane mode.",
   off_note: "New places, live NASA updates, satellite greenness and map pictures need internet; everything else works offline.",
   off_count: "{n} of {total} files saved on this device",
+  year_n: "Year {n}",
+  off_unavail: "This browser cannot save FieldShift for offline use. Try Chrome, Edge, Firefox or Safari.",
+  off_wait: "Checking…",
   // crop lab
   lab_title: 'Crop lab', lab_sub: 'How every crop fits your farm, and a builder to test your own rotation.',
   builder: 'Rotation builder', builder_sub: 'Pick a crop for each year and compare with the recommendations.',
-  suit_title: 'Crop suitability on this farm', limit_by: 'Limited by', yield_local: 'Your yield (t/ha)', gm_local: 'Your margin (USD/ha)',
+  suit_title: 'Crop suitability on this farm', limit_by: 'Limited by', yield_local: "Your yield ({u})", gm_local: "Your margin ({u})",
   lim_temp: 'temperature', lim_frost: 'frost', lim_heat: 'heat', lim_water: 'water', lim_wet: 'waterlogging', lim_soil: 'soil', lim_disease: 'humid-season disease', lim_season: 'season too short',
   excellent: 'Excellent', good: 'Good', marginal: 'Marginal', poor: 'Poor', unsuitable: 'Not suited',
   type_cereal: 'Cereal', type_legume: 'Legume', type_oilseed: 'Oilseed', type_fibre: 'Fibre', type_root: 'Root & tuber', type_vegetable: 'Vegetable', type_forage: 'Forage', type_cover: 'Cover crop',
   fails_in: 'fails {pct}% of years', auto_sec: 'Auto',
   // settings / about
   settings: 'Settings', language: 'Language', units: 'Units', metric: 'Metric', imperial: 'Imperial', theme: 'Theme', th_auto: 'Auto', th_light: 'Light', th_dark: 'Dark',
-  text_size: 'Text size', install: 'Install app', about: 'About & data', saved_farms: 'Saved farms', save_farm: 'Save farm', reset: 'Reset',
+  text_size: 'Text size', install: 'Install app', about: 'About & data', saved_farms: 'Saved farms', save_farm: 'Save farm',
   about_body: 'FieldShift combines NASA Earth observations with soil maps and crop science to help farmers explore crop rotations that strengthen soil health and adapt to changing conditions. All calculations run on your device.',
   data_sources: 'Data sources', method: 'How it works', disclaimer: 'Decision support, not a guarantee. Combine with local knowledge and extension advice.',
   // families
@@ -381,7 +383,7 @@ let code = 'en';
 export async function setLang(c) {
   code = LANGS.some(([k]) => k === c) ? c : 'en';
   if (code === 'en') { dict = EN; return; }
-  try { const m = await import(`./lang/${code}.js?v=1.12.0`); dict = { ...EN, ...m.default }; } catch { dict = EN; code = 'en'; }
+  try { const m = await import(`./lang/${code}.js?v=1.13.0`); dict = { ...EN, ...m.default }; } catch { dict = EN; code = 'en'; }
 }
 export const lang = () => code;
 export function t(k, p) {

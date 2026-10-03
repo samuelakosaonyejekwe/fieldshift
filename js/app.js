@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.12.0';
-import { t, setLang, lang, LANGS, RTL, cropName, cropLabel, monthName, guessLang } from './i18n.js?v=1.12.0';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.12.0';
-import * as CH from './charts.js?v=1.12.0';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.13.0';
+import { t, setLang, lang, LANGS, RTL, cropName, cropLabel, monthName, guessLang } from './i18n.js?v=1.13.0';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.13.0';
+import * as CH from './charts.js?v=1.13.0';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.12.0';
+export const APP_VERSION = '1.13.0';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let shiftTok = 0;
@@ -139,7 +139,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js?v=1.12.0', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.13.0', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -156,7 +156,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js?v=1.12.0');
+  engineMod = engineMod || await import('./engine.js?v=1.13.0');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
@@ -187,7 +187,7 @@ async function boot() {
     // when a new version takes over, reload once so every user always runs the latest code
     const hadController = !!navigator.serviceWorker.controller;
     let reloaded = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } else navigator.serviceWorker.controller?.postMessage('version'); });
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => { reg.update().catch(() => {}); setInterval(() => reg.update().catch(() => {}), 30 * 60e3); return reg; }).then(() => navigator.serviceWorker.ready).then((reg) => {
       // download the offline pack (all demo farms) once the app is idle
       reg.active?.postMessage('offline-status');
@@ -195,10 +195,11 @@ async function boot() {
       'requestIdleCallback' in window ? requestIdleCallback(go2, { timeout: 8000 }) : setTimeout(go2, 4000);
     }).catch(() => {});
     navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'version' && e.data.v !== APP_VERSION) { try { if (!sessionStorage.getItem('fs-vreload')) { sessionStorage.setItem('fs-vreload', '1'); location.reload(); } } catch { /* */ } }
       if (e.data?.type === 'offline-status') { offline = { n: e.data.n, total: e.data.total, busy: !!e.data.busy }; updateOffline(); }
     });
   }
-  const net = () => document.body.classList.toggle('is-offline', !navigator.onLine);
+  const net = () => { document.body.classList.toggle('is-offline', !navigator.onLine); updateOffline(); };
   window.addEventListener('offline', () => { net(); toast(t('offline_now')); });
   window.addEventListener('online', net); net();
 }
@@ -257,7 +258,9 @@ function sizeCharts() {
 }
 window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => { const w = document.documentElement.clientWidth; if (Math.abs(w - (window._lw || 0)) > 40) { window._lw = w; sizeCharts(); if (['climate'].includes(S.tab)) go(S.tab); } }, 250); });
 
+let bootTab = null; // the tab shown at start-up (the address then has no #tab)
 function go(tab, fromHistory = false) {
+  if (fromHistory === 'boot' && !location.hash) bootTab = tab;
   if ($('#sheet') && !$('#sheet').hidden) closeSheet();
   if (!S.farm && tab !== 'farm' && tab !== 'about') tab = 'farm';
   S.tab = tab; save();
@@ -278,8 +281,10 @@ function go(tab, fromHistory = false) {
   }
 }
 // Clear cached app files and reload onto the latest version (at most once per session)
-function canHeal() { try { return !sessionStorage.getItem('fs-healed'); } catch { return false; } }
+// healing re-downloads the app, so it is only attempted online (offline the saved copy is all there is)
+function canHeal() { if (navigator.onLine === false) return false; try { return !sessionStorage.getItem('fs-healed'); } catch { return false; } }
 async function heal() {
+  if (!canHeal()) return;
   try { if (sessionStorage.getItem('fs-healed')) return; sessionStorage.setItem('fs-healed', '1'); } catch { /* */ }
   try { for (const k of await caches.keys()) if (k !== 'fs-data' && k !== 'fs-demos') await caches.delete(k); } catch { /* */ }
   try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch { /* */ }
@@ -304,7 +309,7 @@ function bindGlobal() {
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
   // navigation through the address bar / back button / plain link activation
-  const fromHash = () => { const h = location.hash.slice(1); if (TABS.some(([k]) => k === h) && h !== S.tab) go(h, true); };
+  const fromHash = () => { const h = location.hash.slice(1) || bootTab; if (TABS.some(([k]) => k === h) && h !== S.tab) go(h, true); };
   window.addEventListener('hashchange', fromHash);
   window.addEventListener('popstate', fromHash);
 }
@@ -441,16 +446,19 @@ function keepUI(view, render) {
   const sel = a && view.contains(a) ? ['data-ov', 'data-id', 'data-soil', 'data-b', 'data-i', 'data-prio', 'data-price', 'id'].filter((k) => a.getAttribute(k) != null).map((k) => `[${k}="${CSS.escape(a.getAttribute(k))}"]`).join('') : null;
   let caret = null; try { caret = a?.selectionStart ?? null; } catch { /* number inputs */ }
   const open = [...view.querySelectorAll('details[open]')].map((d) => d.querySelector('[data-id]')?.dataset.id).filter(Boolean);
+  const helps = [...view.querySelectorAll('details.help')].map((d) => d.open);
   render();
   for (const id of open) view.querySelector(`[data-id="${CSS.escape(id)}"]`)?.closest('details')?.setAttribute('open', '');
+  view.querySelectorAll('details.help').forEach((d, i) => { if (helps[i]) d.open = true; });
   if (sel) { const el = view.querySelector(sel); if (el) { el.focus({ preventScroll: true }); try { if (caret != null) el.setSelectionRange(caret, caret); } catch { /* */ } } }
 }
 
 // "What do the colours mean?" — a small expandable explanation under a chart
 // a label with its plain-language definition (tap or hover)
-const defn = (label, ...keys) => (keys.filter(Boolean).length ? `<span class="def" tabindex="0" data-tip="${keys.filter(Boolean).map((k) => esc(t(k))).join('<br><br>')}">${esc(label)}<sup aria-hidden="true">ⓘ</sup></span>` : esc(label));
+const DEF_P = { gl_ero: () => ({ t: QF.thaYr(5) }) }; // definitions that quote a figure in the user's units
+const defn = (label, ...keys) => (keys.filter(Boolean).length ? `<span class="def" tabindex="0" data-tip="${keys.filter(Boolean).map((k) => esc(t(k, DEF_P[k]?.()))).join('<br><br>')}">${esc(label)}<sup aria-hidden="true">ⓘ</sup></span>` : esc(label));
 const hint = (k, p) => `<p class="hint">${esc(t(k, p))}</p>`;
-const help = (...keys) => `<details class="help"><summary><span aria-hidden="true">ⓘ</span> ${esc(t('help_btn'))}</summary>${keys.map((k) => `<p>${esc(t(k))}</p>`).join('')}</details>`;
+const help = (...keys) => `<details class="help"><summary><span aria-hidden="true">ⓘ</span> ${esc(t('help_btn'))}</summary>${keys.map((k) => `<p>${esc(t(k, DEF_P[k]?.()))}</p>`).join('')}</details>`;
 // key for a rotation wheel: the crop families that appear in this plan, plus cover crops and bare soil
 function wheelKey(r) {
   const fams = [...new Set(r.years.flatMap((y) => [y.id, ...(y.sec?.type === 'double' ? [y.sec.id] : [])]).map((id) => CROP[id].fam))];
@@ -517,7 +525,7 @@ function renderFarm() {
     ${hint('hint_then')}
     <label class="tog"><input type="checkbox" data-prac="currentCover" ${p.currentCover ? 'checked' : ''}> ${esc(t('current_cover'))}</label>
   </article>
-  <div class="next"><button class="btn primary" data-go="climate">${esc(t('tab_climate'))} →</button></div>`;
+  <div class="next"><button class="btn primary" data-go="climate">${esc(t('tab_climate'))} <span class="arr" aria-hidden="true">→</span></button></div>`;
   v.oninput = (e) => {
     const el = e.target;
     if (el.dataset.soil) {
@@ -647,7 +655,7 @@ function renderClimate() {
   </div>
   <article class="card" id="shiftCard"><h2>${esc(t('shift_title'))}</h2><p class="muted small">${esc(t('shift_sub'))}</p>${help('h_shift', 'hint_shift2')}<div id="shiftBody">${shift ? shiftHTML() : `<div class="skel"></div>`}</div></article>
   <article class="card" id="ndviCard"><h2>${esc(t('ndvi_title'))}</h2><p class="muted small">${esc(t('ndvi_sub'))}</p>${help('h_ndvi', 'gl_ndvi')}<div id="ndviBody">${ndvi ? ndviHTML() : `<button class="btn" data-act="ndvi">🛰️ ${esc(t('ndvi_load'))}</button>`}</div></article>
-  <div class="next"><button class="btn ghost" data-act="map">🗺️ ${esc(t('map_layers'))}</button><button class="btn primary" data-go="goals">${esc(t('tab_goals'))} →</button></div>`;
+  <div class="next"><button class="btn ghost" data-act="map">🗺️ ${esc(t('map_layers'))}</button><button class="btn primary" data-go="goals">${esc(t('tab_goals'))} <span class="arr" aria-hidden="true">→</span></button></div>`;
   if (!shift) { const tok = ++shiftTok; call('shift').then((r) => { if (tok !== shiftTok) return; shift = r; const b = $('#shiftBody'); if (b) b.innerHTML = shiftHTML(); }).catch(() => {}); }
   if (!ndvi && navigator.onLine) ACT.ndvi();
 }
@@ -667,7 +675,7 @@ function ndviHTML() {
 
 // ---------------- Season so far ----------------
 function loadRecent() {
-  if (!S.farm || !navigator.onLine) return;
+  if (!S.farm) return;
   const { lat, lon } = S.farm;
   fetchRecent(lat, lon).then((d) => {
     if (!S.farm || S.farm.lat !== lat || S.farm.lon !== lon || !ins) return;
@@ -749,7 +757,7 @@ function renderGoals() {
       <label class="numf"><span>${esc(t('w_price'))}</span><span class="numw"><input type="number" step="0.01" min="0" max="5" value="${S.prices.irr}" data-price="irr"><em>$</em></span><small class="muted">${esc(t('hint_wprice'))}</small></label>
     </div>
   </article>
-  <div class="next"><button class="btn primary" data-go="plans">${esc(t('tab_plans'))} →</button></div>`;
+  <div class="next"><button class="btn primary" data-go="plans">${esc(t('tab_plans'))} <span class="arr" aria-hidden="true">→</span></button></div>`;
   v.oninput = (e) => {
     const el = e.target;
     if (el.dataset.prio) { S.prio[el.dataset.prio] = +el.value; el.style.setProperty('--v', `${el.value * 20}%`); el.previousElementSibling.querySelector('output').textContent = el.value; save(); rerun(); }
@@ -810,7 +818,7 @@ function renderPlans() {
   const b = res.baseline;
   const sc = res.scenario || {};
   v.innerHTML = `
-  <div class="head row wrap gap" style="justify-content:space-between"><div><h1>${esc(t('plans_title'))}</h1><p class="muted">${esc(t('plans_sub', { n: U.n(res.evaluated), y: res.climate.years.length, ms: `${U.n(Math.max(0.1, res.ms / 1000), 1)} s` }))}</p>${help('h_scores', 'h_arrows', 'hint_cards', 'gl_score', 'gl_cover', 'gl_double', 'gl_fallow', 'gl_legume', 'gl_variety', 'gl_units', 'gl_pts')}</div>
+  <div class="head row wrap gap" style="justify-content:space-between"><div><h1>${esc(t('plans_title'))}</h1><p class="muted">${esc(t('plans_sub', { n: U.n(res.evaluated), y: res.climate.years.length, ms: U.q(`${U.n(Math.max(0.1, res.ms / 1000), 1)} s`) }))}</p>${help('h_scores', 'h_arrows', 'hint_cards', 'gl_score', 'gl_cover', 'gl_double', 'gl_fallow', 'gl_legume', 'gl_variety', 'gl_units', 'gl_pts')}</div>
     <button class="btn" data-act="report">📄 ${esc(t('report'))}</button></div>
   <div class="lens card flat">
     <span class="lens-l">🔭 ${defn(t('lens'), 'gl_lens')}</span>
@@ -854,7 +862,7 @@ function planCard(r, i, b) {
     ${miniScores(r)}
     ${metricsRow(r, b, true)}
     <ul class="reasons">${good.map((x) => `<li>${x.ic} ${esc(reasonText(x))}</li>`).join('')}${warn.map((x) => `<li class="w">${x.ic} ${esc(reasonText(x))}</li>`).join('')}</ul>
-    <div class="row gap wrap"><button class="btn primary sm" data-act="openPlan" data-i="${i}">${esc(t('details'))} →</button>
+    <div class="row gap wrap"><button class="btn primary sm" data-act="openPlan" data-i="${i}">${esc(t('details'))} <span class="arr" aria-hidden="true">→</span></button>
     <button class="btn ghost sm" data-act="speak" data-i="${i}" aria-label="${esc(t('speak'))}">🔊 ${esc(t('speak'))}</button>
     <button class="btn ghost sm" data-act="share" data-i="${i}">↗ ${esc(t('share'))}</button></div>
   </article>`;
@@ -882,7 +890,7 @@ function closeSheet() {
 document.addEventListener('keydown', (e) => {
   const s = $('#sheet');
   if (e.key !== 'Tab' || !s || s.hidden) return;
-  const f = [...s.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea,[tabindex]:not([tabindex="-1"])')].filter((x) => x.offsetParent !== null);
+  const f = [...s.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select,textarea,summary,[tabindex]:not([tabindex="-1"])')].filter((x) => x.offsetParent !== null);
   if (!f.length) return;
   const first = f[0], last = f[f.length - 1];
   if (!s.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
@@ -1000,7 +1008,8 @@ function planList() {
   if (custom) L.push(['custom', `${t('builder')} — ${planText(custom)}`]);
   return L;
 }
-const planText = (r) => r.seq.map((id, i) => cropLabel(id, r.years[i].v) + (r.years[i].sec.id ? ` + ${cropName(r.years[i].sec.id)}` : '')).join(' → ');
+const seqArrow = () => (RTL.has(lang()) ? ' ← ' : ' → ');
+const planText = (r) => r.seq.map((id, i) => cropLabel(id, r.years[i].v) + (r.years[i].sec.id ? ` + ${cropName(r.years[i].sec.id)}` : '')).join(seqArrow());
 const pickPlan = (k) => (k === 'cur' ? res.baseline : k === 'custom' ? custom : res.top[+k]) || res.top[0] || res.baseline;
 function reportSheet(preset) {
   if (preset != null) repOpt.plan = String(preset);
@@ -1010,7 +1019,7 @@ function reportSheet(preset) {
     <div class="rep-secs">${REP_SECTIONS.map((k) => `<label class="tog"><input type="checkbox" data-rsec="${k}" ${repOpt.sec[k] ? 'checked' : ''}> ${esc(t('sec_' + k))}</label>`).join('')}</div>
     <div class="form">
       <label for="repPlan">${esc(t('rep_plan'))}</label><select id="repPlan">${planList().map(([k, l]) => `<option value="${k}" ${String(repOpt.plan) === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
-      <label for="repN">${defn(t('rep_n'), 'rep_n_hint')}</label><select id="repN">${[1, 2, 3, 4, 5, 6].map((n) => `<option ${repOpt.n === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      <label for="repN">${esc(t('rep_n'))}</label><span class="hint span">${esc(t('rep_n_hint'))}</span><select id="repN">${[1, 2, 3, 4, 5, 6].map((n) => `<option ${repOpt.n === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
     </div></div>
   <div class="row wrap gap"><button class="btn primary" data-act="repPrint">🖨️ ${esc(t('rep_print'))}</button><button class="btn" data-act="repCSV">📊 ${esc(t('rep_csv'))}</button><button class="btn" data-act="repJSON">{ } ${esc(t('rep_json'))}</button></div>`);
   const p = $('#sheet');
@@ -1030,7 +1039,7 @@ function reportHTML() {
     <tr><th>${esc(t('irrigation'))}</th><td>${esc(t('irr_' + p.irrigation))}</td><th>${esc(t('tillage'))}</th><td>${esc(t('till_' + p.tillage))}</td></tr>
     <tr><th>${esc(t('residue'))}</th><td>${esc(t('res_' + p.residue))}</td><th>${esc(t('drainage'))}</th><td>${esc(t('dr_' + p.drainage))}</td></tr>
     <tr><th>${esc(t('slope'))}</th><td>${p.slope}%</td><th>${esc(t('manure'))}</th><td>${U.n(U.tha(p.manure), 1)} ${U.thaL} ${esc(t('per_year'))}</td></tr>
-    <tr><th>${esc(t('current_rot'))}</th><td colspan="3">${esc(b ? planText(b) : p.current.map(cropName).join(' → '))}</td></tr></tbody></table></section>`);
+    <tr><th>${esc(t('current_rot'))}</th><td colspan="3">${esc(b ? planText(b) : p.current.map(cropName).join(seqArrow()))}</td></tr></tbody></table></section>`);
   if (O.soil) h.push(`<section><h2>${esc(t('sec_soil'))}</h2><table class="tbl kv"><tbody>
     <tr><th>${esc(t('texture'))}</th><td>${esc(t('tex_' + textureClass(sl.sand, sl.silt, sl.clay)))}</td><th>${esc(t('sand'))} / ${esc(t('silt'))} / ${esc(t('clay'))}</th><td>${sl.sand} / ${sl.silt} / ${sl.clay} %</td></tr>
     <tr><th>${esc(t('soc'))}</th><td>${sl.soc} g/kg</td><th>${esc(t('ph'))}</th><td>${sl.ph}</td></tr>
@@ -1041,12 +1050,12 @@ function reportHTML() {
     <div class="grid2">${CH.rainChart(C.norm, U)}${CH.tempChart(C.norm, C.frost, U)}</div></section>`);
   if (O.now && recent) h.push(`<section>${nowHTML()}</section>`);
   if (O.suit) h.push(`<section><h2>${esc(t('sec_suit'))}</h2><table class="tbl"><thead><tr><th>${esc(t('crop'))}</th><th>${esc(t('score'))}</th><th>${esc(t('sow'))}–${esc(t('harvest'))}</th><th>${esc(t('exp_yield'))}</th><th>${esc(t('m_fail'))}</th><th>${esc(t('limit_by'))}</th></tr></thead><tbody>
-    ${res.suit.filter((x) => !CROP[x.id].cover).slice(0, 18).map((x) => `<tr><td>${CROP[x.id].ic} ${esc(cropName(x.id))}</td><td>${Math.round(x.S * 100)}</td><td>${x.plant != null ? `${monthName(x.plant)}–${monthName(x.harv)}` : '–'}</td><td>${x.yield ? `${U.n(U.tha(x.yield), 1)} ${U.thaL}` : '–'}</td><td>${Math.round((x.pFail || 0) * 100)}%</td><td>${x.limit ? esc(t('lim_' + x.limit)) : '—'}</td></tr>`).join('')}</tbody></table></section>`);
+    ${res.suit.filter((x) => !CROP[x.id].cover).slice(0, 18).map((x) => `<tr><td>${CROP[x.id].ic} ${esc(cropLabel(x.id, x.v))}</td><td>${Math.round(x.S * 100)}</td><td>${x.plant != null ? `${monthName(x.plant)}–${monthName(x.harv)}` : '–'}</td><td>${x.yield ? `${U.n(U.tha(x.yield), 1)} ${U.thaL}` : '–'}</td><td>${Math.round((x.pFail || 0) * 100)}%</td><td>${x.limit ? esc(t('lim_' + x.limit)) : '—'}</td></tr>`).join('')}</tbody></table></section>`);
   if (O.compare) {
     const rows = [...res.top.slice(0, repOpt.n).map((x, i) => [`#${i + 1}`, x]), ...(b ? [[t('your_current'), b]] : [])];
     h.push(`<section><h2>${esc(t('sec_compare'))}</h2><div class="tbl-w"><table class="tbl cmp"><thead><tr><th></th><th>${esc(t('plans_title'))}</th><th>${esc(t('score'))}</th>${SC_KEYS.map((k) => `<th>${esc(t('s_' + k))}</th>`).join('')}<th>${esc(t('m_soc'))}</th><th>${esc(t('m_ero'))}</th><th>${esc(t('m_fert'))}</th><th>${esc(t('m_irr'))}</th><th>${esc(t('m_gm'))}</th><th>${esc(t('m_fail'))}</th></tr></thead><tbody>
     ${rows.map(([lab, x]) => `<tr><td><b>${esc(lab)}</b></td><td>${esc(planText(x))}</td><td><b>${Math.round(x.total)}</b></td>${SC_KEYS.map((k) => `<td>${Math.round(x.scores[k])}</td>`).join('')}<td>${x.socPct.toFixed(1)}%</td><td>${U.n(U.tha(x.erosion), 1)}</td><td>${U.n(U.kg(x.fert))}</td><td>${U.n(U.mm(x.irr))}</td><td>${U.n(U.money(x.gm))}</td><td>${Math.round(x.pFail * 100)}%</td></tr>`).join('')}</tbody></table></div>
-    <p class="muted small">${esc(t('m_ero'))}: ${U.thaL}/yr · ${esc(t('m_fert'))}: ${U.kgL} · ${esc(t('m_irr'))}: ${U.mmL}/yr · ${esc(t('m_gm'))}: ${U.moneyL}</p></section>`);
+    <p class="muted small">${esc(t('m_ero'))}: ${U.thaL}/${U.yr()} · ${esc(t('m_fert'))}: ${U.kgL} · ${esc(t('m_irr'))}: ${U.mmL}/${U.yr()} · ${esc(t('m_gm'))}: ${U.moneyL}</p></section>`);
   }
   if (r && O.plan) {
     h.push(`<section><h2>${esc(t('sec_plan'))}: ${esc(planText(r))}</h2>
@@ -1088,7 +1097,7 @@ function reportCSV() {
   ins.C.norm.P.forEach((_, m) => L.push([m + 1, ins.C.norm.P[m].toFixed(1), ins.C.norm.ET0[m].toFixed(1), ins.C.norm.T[m].toFixed(1), ins.C.norm.Tx[m].toFixed(1), ins.C.norm.Tn[m].toFixed(1), ins.C.norm.GW[m].toFixed(2), (ins.C.frost[m] || 0).toFixed(1)].join(',')));
   L.push('');
   L.push(['crop', 'suitability', 'sow_month', 'harvest_month', 'expected_yield_t_ha', 'failure_risk_pct', 'limited_by'].join(','));
-  for (const x of res.suit) L.push([cropName(x.id), (x.S * 100).toFixed(0), x.plant != null ? ((x.plant + 12) % 12) + 1 : '', x.harv != null ? ((x.harv + 12) % 12) + 1 : '', x.yield ? x.yield.toFixed(2) : '', ((x.pFail || 0) * 100).toFixed(0), x.limit || ''].map(q).join(','));
+  for (const x of res.suit) L.push([cropLabel(x.id, x.v), (x.S * 100).toFixed(0), x.plant != null ? ((x.plant + 12) % 12) + 1 : '', x.harv != null ? ((x.harv + 12) % 12) + 1 : '', x.yield ? x.yield.toFixed(2) : '', ((x.pFail || 0) * 100).toFixed(0), x.limit || ''].map(q).join(','));
   download(`fieldshift-${slug()}.csv`, '\ufeff' + L.join('\r\n'), 'text/csv;charset=utf-8');
 }
 function reportJSON() {
@@ -1132,17 +1141,17 @@ function renderLab() {
         <span class="s-m">${s.plant != null ? `${monthName(s.plant)}–${monthName(s.harv)}` : ''} ${s.limit ? `· ${esc(t('limit_by'))} ${esc(t('lim_' + s.limit))}` : `· ${esc(t(bk))}`}${s.pFail > 0.1 ? ` · ⚠️ ${esc(t('fails_in', { pct: Math.round(s.pFail * 100) }))}` : ''}</span></summary>
         <div class="s-d">
           ${s.comps ? `${hint('hint_factors')}<div class="comps">${Object.entries(s.comps).map(([k, x]) => `<span class="${x < 0.7 ? 'lo' : ''}">${esc(t('lim_' + k))} <b>${Math.round(x * 100)}</b></span>`).join('')}</div>` : ''}
-          <p class="small muted">${esc(t(FAMILIES[c.fam]?.key || 'fam_other'))} · ${esc(t('type_' + c.type))}${c.nfix ? ` · ${esc(t('adds_n', { n: c.nfix }))}` : ''}${c.cover ? '' : ` · ${esc(t('exp_yield'))} ${s.yield ? `${U.n(U.tha(s.yield), 1)} ${U.thaL}` : '—'}`}</p>
-          ${!c.cover ? `<div class="fields">
-            <label class="numf"><span>${esc(t('yield_local'))}</span><span class="numw"><input type="number" step="0.1" min="0" value="${S.overrides[c.id]?.yld ?? c.yld}" data-ov="yld" data-id="${c.id}"></span></label>
-            <label class="numf"><span>${esc(t('gm_local'))}</span><span class="numw"><input type="number" step="10" value="${S.overrides[c.id]?.gm ?? c.gm}" data-ov="gm" data-id="${c.id}"></span></label></div>` : ''}
+          <p class="small muted">${esc(t(FAMILIES[c.fam]?.key || 'fam_other'))} · ${esc(t('type_' + c.type))}${c.nfix ? ` · ${esc(t('adds_n', { n: QF.kgha(c.nfix) }))}` : ''}${c.cover ? '' : ` · ${esc(t('exp_yield'))} ${s.yield ? `${U.n(U.tha(s.yield), 1)} ${U.thaL}` : '—'}`}</p>
+          ${!c.cover ? `${hint('hint_override')}<div class="fields">
+            <label class="numf"><span>${esc(t('yield_local', { u: U.thaL }))}</span><span class="numw"><input type="number" step="0.1" min="0" value="${+U.tha(S.overrides[c.id]?.yld ?? s.yld ?? c.yld).toFixed(2)}" data-ov="yld" data-id="${c.id}"></span></label>
+            <label class="numf"><span>${esc(t('gm_local', { u: U.moneyL }))}</span><span class="numw"><input type="number" step="10" value="${Math.round(U.money(S.overrides[c.id]?.gm ?? c.gm))}" data-ov="gm" data-id="${c.id}"></span></label></div>` : ''}
         </div></details>`; }).join('')}</div>
   </article>`;
   if (!custom) evalCustom();
   v.onchange = (e) => {
     const el = e.target;
     if (el.dataset.b) { S.builder[el.dataset.b][+el.dataset.i] = el.value; custom = null; save(); evalCustom(); }
-    if (el.dataset.ov) { if (el.value === '' || !Number.isFinite(+el.value)) return; S.overrides[el.dataset.id] = { ...(S.overrides[el.dataset.id] || {}), [el.dataset.ov]: +el.value }; save(); rerun(); } // entered in the units the labels state (t/ha, USD/ha)
+    if (el.dataset.ov) { if (el.value === '' || !Number.isFinite(+el.value)) return; S.overrides[el.dataset.id] = { ...(S.overrides[el.dataset.id] || {}), [el.dataset.ov]: U.imp ? +el.value * 2.471 : +el.value }; save(); rerun(); } // typed per acre or hectare (as the label says), stored per hectare
   };
 }
 async function evalCustom() {
@@ -1161,7 +1170,7 @@ function customHTML() {
   const names = [t('builder'), ...(b ? [t('your_current')] : []), ...(top ? [`#1 ★ ${t('best')}`] : [])];
   return `<div class="pc-top"><div class="pc-w">${CH.wheel(r, 90, false)}</div><div class="pc-t"><div class="seq">${planTitle(r)}</div></div>${CH.donut(r.total, 60)}</div>
     ${metricsRow(r, b)}${CH.compareBars(rows, names)}${help('h_compare')}
-    <div class="row gap"><button class="btn sm" data-act="openCustom">${esc(t('details'))} →</button></div>`;
+    <div class="row gap"><button class="btn sm" data-act="openCustom">${esc(t('details'))} <span class="arr" aria-hidden="true">→</span></button></div>`;
 }
 
 // ---------------- ABOUT ----------------
@@ -1189,7 +1198,7 @@ function guideHTML() {
   return `<div class="sh-head"><h2>❓ ${esc(t('guide_title'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
   <p class="muted">${esc(t('guide_sub'))}</p>
   <details class="card flat colour-guide"><summary><h3>📖 ${esc(t('glossary'))}</h3></summary>
-    <dl>${GLOSSARY.map((k) => { const [term, ...rest] = t(k).split(': '); return `<dt>${esc(term)}</dt><dd>${esc(rest.join(': ') || term)}</dd>`; }).join('')}</dl>
+    <dl>${GLOSSARY.map((k) => { const [term, ...rest] = t(k, DEF_P[k]?.()).split(': '); return `<dt>${esc(term)}</dt><dd>${esc(rest.join(': ') || term)}</dd>`; }).join('')}</dl>
   </details>
   <details class="card flat colour-guide"><summary><h3>🎨 ${esc(t('legend_title'))}</h3></summary>
     <dl>${[['ch_rain', 'h_rain'], ['ch_temp', 'h_temp'], ['sec_climate', 'h_trend'], ['shift_title', 'h_shift'], ['ndvi_title', 'h_ndvi'], ['now_title', 'h_now'], ['plans_title', 'h_scores'], ['vs_current', 'h_arrows'], ['sec_compare', 'h_summary'], ['wheel', 'h_wheel'], ['calendar', 'h_calendar'], ['score_vs', 'h_compare'], ['soc_chart', 'h_soc'], ['sec_tm', 'h_tm'], ['suit_title', 'h_suit'], ['soil_title', 'h_soil']].map(([a, b2]) => `<dt>${esc(t(a))}</dt><dd>${esc(t(b2))}</dd>`).join('')}</dl>
@@ -1215,25 +1224,32 @@ function settingsHTML() {
   ${hint('set_clean')}<p class="muted small">FieldShift ${APP_VERSION} · <button class="link" data-act="diag">${esc(t('diag_title'))}</button></p>`;
 }
 // ---------------- Offline & airplane mode ----------------
-let offline = { n: 0, total: 0, busy: false, unsupported: !('serviceWorker' in navigator) };
+let offline = { n: 0, total: 0, busy: false, unsupported: !('serviceWorker' in navigator) || location.protocol === 'file:' };
 const offPct = () => (offline.total ? Math.round((100 * offline.n) / offline.total) : 0);
 const offReady = () => offline.total > 0 && offline.n >= offline.total;
+// one wording for the offline state everywhere (badge, cards)
+function offStatusText() {
+  if (offReady()) return t('off_ready');
+  if (offline.unsupported) return t('off_unavail');
+  if (!offline.total) return t('off_wait');
+  return offline.busy || offline.n > 0 ? t('off_partial', { pct: offPct() }) : t('off_none');
+}
 function offBadge() {
-  const st = offReady() ? 'ok' : offline.busy ? 'busy' : 'no';
-  const txt = offReady() ? t('off_ready') : offline.busy ? t('off_partial', { pct: offPct() }) : t('off_none');
+  const st = offReady() ? 'ok' : offline.unsupported ? 'no' : offline.busy || offline.n > 0 ? 'busy' : 'no';
+  const txt = offStatusText();
   return `<button class="off-badge ${st}" data-act="offline" title="${esc(t('off_title'))}: ${esc(txt)}" aria-label="${esc(t('off_title'))}: ${esc(txt)}"><span aria-hidden="true">✈</span><span class="ob-t">${esc(txt)}</span></button>`;
 }
 function offlineCard(inSheet = false) {
   const pct = offPct(), ready = offReady();
-  return `<section class="card offline-card ${ready ? 'ready' : ''}" id="offlineCard">
+  return `<section class="card offline-card ${ready ? 'ready' : ''}">
     ${inSheet ? '' : `<h2>✈ ${esc(t('off_title'))}</h2>`}
-    <div class="off-status"><b>${esc(ready ? t('off_ready') : offline.busy ? t('off_partial', { pct }) : t('off_none'))}</b>
+    <div class="off-status"><b>${esc(offStatusText())}</b>
       <div class="off-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${ready ? 100 : pct}%"></i></div>
       <small class="muted">${esc(t('off_count', { n: offline.n, total: offline.total || '…' }))}</small></div>
     <p>${esc(t('off_desc'))}</p>
     <p class="off-steps">${esc(t('off_steps'))}</p>
     <div class="row wrap gap">
-      ${ready ? `<span class="pill ok-pill">${esc(t('off_ready'))}</span>` : `<button class="btn primary" data-act="offlineSave" ${offline.busy || !navigator.onLine ? 'disabled' : ''}>⬇ ${esc(t('off_btn'))}</button>`}
+      ${ready ? `<span class="pill ok-pill">${esc(t('off_ready'))}</span>` : `<button class="btn primary" data-act="offlineSave" ${offline.busy || offline.unsupported || !navigator.onLine ? 'disabled' : ''}>⬇ ${esc(t('off_btn'))}</button>`}
       ${canOfferInstall() ? `<button class="install-btn" data-act="install"><span class="ib-ic">⬇</span><span class="ib-t">${esc(t('install'))}</span></button>` : `<span class="pill">${esc(t('installed'))}</span>`}
     </div>
     <p class="hint">${esc(t('off_note'))}</p>
@@ -1307,7 +1323,7 @@ const VOICE = { en: 'en-US', es: 'es-ES', fr: 'fr-FR', pt: 'pt-BR', sw: 'sw-KE',
 function planSpeech(r, idx) {
   const parts = r.seq.map((id, i) => {
     const y = r.years[i];
-    return `${t('yr')} ${i + 1}: ${cropName(id)}${y.sec.id ? `, ${t('then')} ${cropName(y.sec.id)}` : ''}`;
+    return `${t('year_n', { n: i + 1 })}: ${cropLabel(id, y.v)}${y.sec.id ? `, ${t('then')} ${cropName(y.sec.id)}` : ''}`;
   });
   return `${idx >= 0 ? `#${idx + 1}. ` : ''}${parts.join('. ')}. ${t('score')} ${Math.round(r.total)}. ${(r.reasons || []).map(reasonText).join(' ')}`;
 }
@@ -1423,7 +1439,11 @@ const ACT = {
   about: () => { closeSheet(); go('about'); },
   install: () => install(),
   offline: () => { sheet(`<div class="sh-head"><h2>✈ ${esc(t('off_title'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div><div class="offline-slot" data-sheet="1">${offlineCard(true)}</div>`); navigator.serviceWorker?.controller?.postMessage('offline-status'); },
-  offlineSave: async () => { offline.busy = true; updateOffline(); const reg = await navigator.serviceWorker?.ready; reg?.active?.postMessage('offline-pack'); },
+  offlineSave: async () => {
+    // no service worker (blocked, private mode, file://): say so instead of waiting forever
+    const reg = await Promise.race([navigator.serviceWorker?.getRegistration?.() ?? null, new Promise((r) => setTimeout(() => r(null), 3000))]).catch(() => null);
+    if (!reg?.active) { offline.unsupported = true; offline.busy = false; updateOffline(); return; }
+    offline.busy = true; updateOffline(); reg.active.postMessage('offline-pack'); },
   guide: () => sheet(guideHTML()),
   guideGo: (a) => {
     const i = +a.dataset.i, tab = GUIDE_TAB[i];
