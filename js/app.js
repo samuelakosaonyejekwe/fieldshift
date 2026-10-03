@@ -13,7 +13,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const DEF = {
   v: 2, lang: null, units: 'metric', theme: 'auto', fs: 1, tab: 'farm',
   farm: null, soil: null, soilEdited: false,
-  practice: { irrigation: 'none', tillage: 'conventional', residue: 'retained', drainage: 'moderate', slope: 2, salinity: 'none', manure: 0, conservation: false, current: [], currentCover: false },
+  practice: { irrigation: 'none', tillage: 'conventional', residue: 'retained', drainage: 'moderate', slope: 2, salinity: 'none', manure: 0, conservation: false, current: [], currentSec: [], currentCover: false },
   prio: { soil: 3, water: 3, profit: 3, resil: 3, simple: 2 },
   cons: { len: 'auto', covers: true, double: true, hort: false, forage: false, include: [], exclude: [] },
   scen: { mode: 'base', dT: 1.5, dP: -10 },
@@ -216,7 +216,10 @@ async function openFarm(f, quiet = false) {
   const auto = parseSoil(raw.soil);
   S.soilAuto = auto;
   if (!sameFarm || !S.soil || !S.soilEdited) { S.soil = { ...(auto || DEFAULT_SOIL) }; S.soilEdited = false; }
-  if (!sameFarm) { S.practice.current = []; S.builder = { seq: [], sec: [] }; shift = null; ndvi = null; }
+  if (!sameFarm) {
+    S.practice = { ...structuredClone(DEF.practice), ...(f.demo ? DEMO_PRACTICE[f.demo] || {} : {}) };
+    S.builder = { seq: [], sec: [] };
+  }
   shift = null; ndvi = null; custom = null;
   save(); updateChip();
   if (!S.farm.name) reverseGeocode(f.lat, f.lon, lang()).then((n) => { if (n && S.farm) { S.farm.name = n; save(); updateChip(); if (S.tab === 'farm') renderFarm(); } });
@@ -292,7 +295,8 @@ function renderFarm() {
   <article class="card">
     <h2>${esc(t('current_rot'))}</h2>
     <p class="muted small">${esc(t('current_hint'))}</p>
-    <div class="seqedit">${p.current.map((id, i) => `<span class="seqc" style="--c:${famColor(id)}">${t('yr')} ${i + 1}: ${CROP[id].ic} ${esc(cropName(id))} <button data-act="curDel" data-i="${i}" aria-label="${esc(t('remove'))}">×</button></span>`).join('<span class="arr">→</span>')}
+    <div class="seqedit">${p.current.map((id, i) => `<span class="seqc" style="--c:${famColor(id)}">${t('yr')} ${i + 1}: ${CROP[id].ic} ${esc(cropName(id))} <button data-act="curDel" data-i="${i}" aria-label="${esc(t('remove'))}">×</button>
+      <select class="mini-sel" data-cursec="${i}" aria-label="${esc(t('then'))}"><option value="">${esc(t('then'))}: —</option>${[...MAIN_CROPS.filter((c) => !c.per), ...COVER_CROPS].map((c) => `<option value="${c.id}" ${p.currentSec?.[i] === c.id ? 'selected' : ''}>${esc(t('then'))}: ${c.cover ? '🌱' : '➕'} ${esc(cropName(c.id))}</option>`).join('')}</select></span>`).join('<span class="arr">→</span>')}
       ${p.current.length < 5 ? `<select data-act-change="curAdd" aria-label="${esc(t('add_year'))}"><option value="">+ ${esc(t('add_year'))}</option>${MAIN_CROPS.map((c) => `<option value="${c.id}">${c.ic} ${esc(cropName(c.id))}</option>`).join('')}</select>` : ''}
     </div>
     <label class="tog"><input type="checkbox" data-prac="currentCover" ${p.currentCover ? 'checked' : ''}> ${esc(t('current_cover'))}</label>
@@ -313,6 +317,7 @@ function renderFarm() {
   };
   v.onchange = (e) => {
     if (e.target.dataset.actChange === 'curAdd' && e.target.value) { S.practice.current.push(e.target.value); save(); rerun(); renderFarm(); }
+    if (e.target.dataset.cursec != null) { S.practice.currentSec = S.practice.currentSec || []; S.practice.currentSec[+e.target.dataset.cursec] = e.target.value || undefined; save(); rerun(); }
   };
 }
 const num = (k, label, val, min, max, step, unit) => `<label class="numf"><span>${esc(label)}</span><span class="numw"><input type="number" inputmode="decimal" data-soil="${k}" value="${val}" min="${min}" max="${max}" step="${step}"><em>${unit}</em></span></label>`;
@@ -429,6 +434,19 @@ function ndviHTML() {
 }
 
 // ---------------- GOALS TAB ----------------
+// typical local practice for demo farms (so the baseline comparison is realistic)
+const DEMO_PRACTICE = {
+  iowa: { current: ['maize', 'soybean'] }, fresno: { irrigation: 'full', current: ['cotton', 'wheat'] },
+  saskatoon: { current: ['wheat', 'canola'] }, sinaloa: { irrigation: 'full', current: ['maize'] },
+  matogrosso: { current: ['soybean'], currentSec: ['maize'] }, pampas: { current: ['soybean', 'maize'] }, peru: { current: ['potato', 'quinoa'] },
+  kano: { current: ['sorghum', 'cowpea'] }, tamale: { current: ['maize'] }, addis: { current: ['teff', 'wheat'] },
+  nakuru: { current: ['maize'] }, lilongwe: { current: ['maize'] }, free_state: { current: ['maize'] },
+  nile: { irrigation: 'full', current: ['wheat'], currentSec: ['maize'] }, cordoba: { current: ['wheat', 'sunflower'] },
+  france: { current: ['wheat', 'maize'] }, ukraine: { current: ['wheat', 'sunflower'] },
+  punjab: { irrigation: 'full', current: ['rice'], currentSec: ['wheat'] }, bangladesh: { irrigation: 'supplemental', current: ['rice'], currentSec: ['wheat'] },
+  heilongjiang: { current: ['maize', 'soybean'] }, mekong: { irrigation: 'full', current: ['rice'], currentSec: ['rice'] },
+  java: { irrigation: 'supplemental', current: ['rice', 'maize'] }, wagga: { current: ['wheat', 'canola'] },
+};
 const PRESETS = {
   balanced: { soil: 3, water: 3, profit: 3, resil: 3, simple: 2 },
   soil: { soil: 5, water: 3, profit: 2, resil: 3, simple: 1 },
@@ -520,8 +538,9 @@ function reasonText(x) {
   return t(x.k, p);
 }
 const SC_KEYS = ['soil', 'water', 'profit', 'resil', 'simple'];
+const SC_IC = { soil: '🪱', water: '💧', profit: '💰', resil: '🛡️', simple: '🧭' };
 function miniScores(r) {
-  return `<div class="minis">${SC_KEYS.map((k) => `<div class="mini" data-tip="${esc(t('s_' + k))}: ${Math.round(r.scores[k])}/100"><i style="--h:${Math.max(4, r.scores[k])}%"></i><span>${esc(t('s_' + k)).slice(0, 5)}</span></div>`).join('')}</div>`;
+  return `<div class="minis">${SC_KEYS.map((k) => `<div class="mini" data-tip="${esc(t('p_' + k))}: ${Math.round(r.scores[k])}/100"><span><em>${SC_IC[k]}</em><s>${esc(t('s_' + k))}</s></span><b>${Math.round(r.scores[k])}</b><i><u style="width:${Math.max(3, r.scores[k])}%"></u></i></div>`).join('')}</div>`;
 }
 
 function renderPlans() {
@@ -544,8 +563,21 @@ function renderPlans() {
     ${miniScores(b)}${metricsRow(b, null, true)}
     <div class="row gap"><button class="btn ghost sm" data-act="openPlan" data-i="-1">${esc(t('details'))}</button></div>
   </article>` : `<p class="note warn">${esc(t('cur_fail'))}</p>`}
-  ${res.top.length ? res.top.map((r, i) => planCard(r, i, b)).join('') : `<p class="note warn">${esc(t('no_plans'))}</p>`}`;
+  ${res.top.length ? `${summary(res.top[0], b)}<div class="plans">${res.top.map((r, i) => planCard(r, i, b)).join('')}</div>` : `<p class="note warn">${esc(t('no_plans'))}</p>`}`;
   v.oninput = (e) => { const el = e.target; if (el.dataset.scen) { S.scen[el.dataset.scen] = +el.value; el.previousElementSibling.textContent = `${el.value > 0 ? '+' : ''}${el.value}${el.dataset.scen === 'dT' ? ' °C' : '%'}`; save(); rerun(); } };
+}
+function summary(r, b) {
+  if (!b) return '';
+  const items = [
+    ['💰', t('m_gm'), U.money(r.gm - b.gm), (x) => `${x >= 0 ? '+' : '−'}${U.n(Math.abs(x))}`, U.moneyL, true],
+    ['🧪', t('m_fert'), U.kg(r.fert - b.fert), (x) => `${x >= 0 ? '+' : '−'}${U.n(Math.abs(x))}`, U.kgL, false],
+    ...(Math.abs(r.irr - b.irr) > 5 ? [['💧', t('m_irr'), U.mm(r.irr - b.irr), (x) => `${x >= 0 ? '+' : '−'}${U.n(Math.abs(x))}`, U.mmL + '/yr', false]] : []),
+    ['🪱', t('m_soc'), r.socPct - b.socPct, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}`, '%', true],
+    ['🛡️', t('m_ero'), b.erosion ? ((r.erosion - b.erosion) / b.erosion) * 100 : 0, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x))}`, '%', false],
+    ['⚠️', t('m_fail'), (r.pFail - b.pFail) * 100, (x) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x))}`, 'pts', false],
+  ];
+  return `<section class="summary"><div class="sum-h"><span class="eyebrow">#1 ${esc(t('vs_current'))}</span><div class="seq">${planTitle(r)}</div></div>
+    <div class="sum-k">${items.map(([ic, l, v, f, u, upGood]) => { const good = Math.abs(v) < 0.05 ? '' : (v > 0) === upGood ? 'up' : 'down'; return `<div><span>${ic} ${esc(l)}</span><b class="${good}">${f(v)}<small> ${esc(u)}</small></b></div>`; }).join('')}</div></section>`;
 }
 function planCard(r, i, b) {
   const good = r.reasons.filter((x) => !x.warn).slice(0, 3), warn = r.reasons.filter((x) => x.warn).slice(0, 1);
@@ -804,7 +836,7 @@ const ACT = {
   openSaved: (a) => openFarm(S.saved[+a.dataset.i]),
   soilReset: () => { S.soil = { ...S.soilAuto }; S.soilEdited = false; save(); rerun(); renderFarm(); },
   prac: (a) => { S.practice[a.dataset.k] = a.dataset.v; save(); rerun(); $$(`[data-act="prac"][data-k="${a.dataset.k}"]`).forEach((b) => b.setAttribute('aria-checked', b === a)); },
-  curDel: (a) => { S.practice.current.splice(+a.dataset.i, 1); save(); rerun(); renderFarm(); },
+  curDel: (a) => { S.practice.current.splice(+a.dataset.i, 1); S.practice.currentSec?.splice(+a.dataset.i, 1); save(); rerun(); renderFarm(); },
   preset: (a) => { S.prio = { ...PRESETS[a.dataset.k] }; save(); rerun(); renderGoals(); },
   cons: (a) => { S.cons[a.dataset.k] = a.dataset.v === 'auto' ? 'auto' : +a.dataset.v; save(); rerun(); $$(`[data-act="cons"][data-k="${a.dataset.k}"]`).forEach((b) => b.setAttribute('aria-checked', b === a)); },
   tri: (a) => {

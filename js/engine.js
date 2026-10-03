@@ -305,6 +305,14 @@ function gapOptions(ctx, a, L) {
 
 function chooseGap(ctx, prefs, a, L, prev, next, forced) {
   if (L < 2 || forced === 'fallow') return { type: 'fallow', L };
+  if (forced && forced !== 'auto' && CROP[forced]) {
+    // farmer-specified second crop: place it directly, no automatic rules
+    const c = CROP[forced], s0 = ((a % 12) + 12) % 12;
+    let pl = null;
+    for (let d = 0; d <= Math.min(1, L - 2) && !pl; d++) { pl = evalSpan(c, ctx, s0 + d, L - d, c.cover, true); if (pl) pl.off = d; }
+    if (!pl && !c.cover) { pl = evalSpan(c, ctx, s0, L, true, true); if (pl) { pl.off = 0; pl.S *= pl.frac; } }
+    return pl ? { type: c.cover ? 'cover' : 'double', id: c.id, pl, L } : { type: 'fallow', L };
+  }
   const o = gapOptions(ctx, a, L);
   const W = prefs.w, ar = ctx.C.aridity;
   const refGM = 1500;
@@ -645,7 +653,7 @@ export function recommend(base, inp) {
   // default baseline: the best-suited staple cereal (what most farms in the region grow)
   const staple = sorted.find((x) => CROP[x.id].type === 'cereal' && !CROP[x.id].home) || sorted[0];
   const curSeq = cur.length ? cur : [staple?.id || 'maize'];
-  const baseline = evaluate(curSeq, ctx, prefs, { sec: curSeq.map(() => inp.practice.currentCover ? 'auto' : 'fallow') });
+  const baseline = evaluate(curSeq, ctx, prefs, { sec: curSeq.map((_, i) => (cur.length && inp.practice.currentSec?.[i]) || (inp.practice.currentCover ? 'auto' : 'fallow')) });
   const refGM = Math.max(1, ...results.map((r) => r.gm), baseline?.gm || 0);
   finalize(results, prefs.w, refGM);
   if (baseline) finalize([baseline], prefs.w, refGM);
