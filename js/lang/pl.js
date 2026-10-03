@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Tropikalna", z_subtropical: "Podzwrotnikowa", z_temperate: "Umiarkowana", z_cold: "Mroźna zima",
   z_arid: "sucha", z_semiarid: "półsucha", z_subhumid_dry: "suchsza półwilgotna", z_subhumid: "półwilgotna", z_humid: "wilgotna",
+  report: "Raport", rep_title: "Kreator raportu", rep_sub: "Wybierz, co uwzględnić, a następnie wydrukuj / zapisz jako PDF lub pobierz dane.", rep_sections: "Sekcje", rep_plan: "Plan do szczegółów", rep_n: "Plany do porównania", sec_farm: "Gospodarstwo i praktyki", sec_soil: "Gleba", sec_climate: "Podsumowanie klimatu NASA", sec_now: "Bieżący sezon", sec_suit: "Tabela przydatności upraw", sec_compare: "Porównanie planów", sec_plan: "Wybrany plan szczegółowo", sec_actions: "Plan działań", sec_tm: "Wehikuł czasu", sec_methods: "Metody i źródła danych", rep_print: "Drukuj / zapisz PDF", rep_csv: "Pobierz arkusz (CSV)", rep_json: "Pobierz dane (JSON)", generated: "Wygenerowano",
 };

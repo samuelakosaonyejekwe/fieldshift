@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Ho'aa (tiroopikaalaa)", z_subtropical: "Ho'aa gariitti", z_temperate: "Giddugaleessa", z_cold: "Ganna qorraa",
   z_arid: "gogaa", z_semiarid: "gogaa gariitti", z_subhumid_dry: "jiidhaa xiqqaa gogaa", z_subhumid: "jiidhaa xiqqaa", z_humid: "jiidhaa",
+  report: "Gabaasa", rep_title: "Qopheessaa gabaasaa", rep_sub: "Waan galchamu filadhu, achiin maxxansi / akka PDF tti olkaa'i ykn daataa buusi.", rep_sections: "Kutaalee", rep_plan: "Karoora bal'inaan ibsamu", rep_n: "Karoorota wal bira qabaman", sec_farm: "Qonnaa fi gochaalee", sec_soil: "Biyyoo", sec_climate: "Cuunfaa qilleensaa NASA", sec_now: "Waqtii hanga ammaa", sec_suit: "Gabatee mijaa'ina midhaanii", sec_compare: "Wal bira qabiinsa karoorotaa", sec_plan: "Karoora filatame bal'inaan", sec_actions: "Karoora hojii", sec_tm: "Maashina Yeroo", sec_methods: "Malootaa fi maddoota daataa", rep_print: "Maxxansi / PDF olkaa'i", rep_csv: "Gabatee herregaa buusi (CSV)", rep_json: "Daataa buusi (JSON)", generated: "Kan qophaa'e",
 };

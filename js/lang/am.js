@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: 'ሞቃታማ', z_subtropical: 'ከፊል ሞቃታማ', z_temperate: 'ወይና ደጋ', z_cold: 'ቀዝቃዛ ክረምት ያለው',
   z_arid: 'ደረቅ', z_semiarid: 'ከፊል ደረቅ', z_subhumid_dry: 'ደረቅ ከፊል እርጥበታማ', z_subhumid: 'ከፊል እርጥበታማ', z_humid: 'እርጥበታማ',
+  report: "ሪፖርት", rep_title: "ሪፖርት አዘጋጅ", rep_sub: "ምን እንደሚካተት ይምረጡ፣ ከዚያ ያትሙ / እንደ PDF ያስቀምጡ ወይም ውሂቡን ያውርዱ።", rep_sections: "ክፍሎች", rep_plan: "በዝርዝር የሚታይ ዕቅድ", rep_n: "የሚነጻጸሩ ዕቅዶች", sec_farm: "እርሻ እና አሠራሮች", sec_soil: "አፈር", sec_climate: "የNASA የአየር ንብረት ማጠቃለያ", sec_now: "የዘንድሮው ወቅት እስካሁን", sec_suit: "የሰብል ተስማሚነት ሰንጠረዥ", sec_compare: "የዕቅዶች ንጽጽር", sec_plan: "የተመረጠው ዕቅድ በዝርዝር", sec_actions: "የሥራ ዕቅድ", sec_tm: "የጊዜ ማሽን", sec_methods: "ዘዴዎች እና የውሂብ ምንጮች", rep_print: "አትም / PDF አስቀምጥ", rep_csv: "የተመን ሉህ አውርድ (CSV)", rep_json: "ውሂብ አውርድ (JSON)", generated: "የተዘጋጀው",
 };

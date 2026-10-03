@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Okpomọkụ (tropical)", z_subtropical: "Nso okpomọkụ (subtropical)", z_temperate: "Etiti (temperate)", z_cold: "Oyi n'udu oyi",
   z_arid: "kpọrọ nkụ", z_semiarid: "kpọrọ nkụ ntakịrị", z_subhumid_dry: "iru mmiri dị ntakịrị", z_subhumid: "iru mmiri etiti", z_humid: "iru mmiri",
+  report: "Akụkọ", rep_title: "Onye nrụpụta akụkọ", rep_sub: "Họrọ ihe ị ga-etinye, wee bipụta / chekwaa dị ka PDF ma ọ bụ budata data.", rep_sections: "Ngalaba", rep_plan: "Atụmatụ a ga-akọwa", rep_n: "Atụmatụ a ga-atụnyere", sec_farm: "Ugbo na omume", sec_soil: "Ala", sec_climate: "Nchịkọta ihu igwe NASA", sec_now: "Oge a ruo ugbu a", sec_suit: "Tebụl nkwekọ ihe ọkụkụ", sec_compare: "Ntụnyere atụmatụ", sec_plan: "Atụmatụ a họrọ n'zuzu", sec_actions: "Atụmatụ ọrụ", sec_tm: "Igwe Oge", sec_methods: "Ụzọ na isi mmalite data", rep_print: "Bipụta / chekwaa PDF", rep_csv: "Budata mpempe ndekọ (CSV)", rep_json: "Budata data (JSON)", generated: "E mepụtara",
 };

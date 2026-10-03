@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Tropicale", z_subtropical: "Subtropicale", z_temperate: "Temperato", z_cold: "Inverno freddo",
   z_arid: "arido", z_semiarid: "semiarido", z_subhumid_dry: "subumido secco", z_subhumid: "subumido", z_humid: "umido",
+  report: "Report", rep_title: "Crea report", rep_sub: "Scegli cosa includere, poi stampa / salva come PDF o scarica i dati.", rep_sections: "Sezioni", rep_plan: "Piano da dettagliare", rep_n: "Piani da confrontare", sec_farm: "Azienda e pratiche", sec_soil: "Suolo", sec_climate: "Riepilogo clima NASA", sec_now: "La stagione finora", sec_suit: "Tabella di idoneità delle colture", sec_compare: "Confronto dei piani", sec_plan: "Piano selezionato in dettaglio", sec_actions: "Piano d'azione", sec_tm: "Macchina del tempo", sec_methods: "Metodi e fonti dei dati", rep_print: "Stampa / salva PDF", rep_csv: "Scarica foglio di calcolo (CSV)", rep_json: "Scarica dati (JSON)", generated: "Generato",
 };

@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "열대", z_subtropical: "아열대", z_temperate: "온대", z_cold: "한랭 겨울",
   z_arid: "건조", z_semiarid: "반건조", z_subhumid_dry: "건조 아습윤", z_subhumid: "아습윤", z_humid: "습윤",
+  report: "보고서", rep_title: "보고서 만들기", rep_sub: "포함할 항목을 고른 뒤 인쇄 / PDF로 저장하거나 데이터를 내려받으세요.", rep_sections: "섹션", rep_plan: "자세히 볼 계획", rep_n: "비교할 계획", sec_farm: "농장 및 영농 방식", sec_soil: "토양", sec_climate: "NASA 기후 요약", sec_now: "이번 작기 현황", sec_suit: "작물 적합도 표", sec_compare: "계획 비교", sec_plan: "선택한 계획 상세", sec_actions: "실행 계획", sec_tm: "타임머신", sec_methods: "방법 및 데이터 출처", rep_print: "인쇄 / PDF 저장", rep_csv: "스프레드시트 다운로드 (CSV)", rep_json: "데이터 다운로드 (JSON)", generated: "생성일",
 };

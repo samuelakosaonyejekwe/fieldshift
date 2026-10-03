@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Tropikal", z_subtropical: "Subtropikal", z_temperate: "Katamtamang klima", z_cold: "Malamig na taglamig",
   z_arid: "tuyo", z_semiarid: "medyo tuyo", z_subhumid_dry: "tuyong medyo maalinsangan", z_subhumid: "medyo maalinsangan", z_humid: "maalinsangan",
+  report: "Ulat", rep_title: "Gumawa ng ulat", rep_sub: "Piliin ang isasama, saka i-print / i-save bilang PDF o i-download ang data.", rep_sections: "Mga seksyon", rep_plan: "Planong idedetalye", rep_n: "Mga planong ihahambing", sec_farm: "Bukid at mga gawi", sec_soil: "Lupa", sec_climate: "Buod ng klima mula sa NASA", sec_now: "Ang panahon sa ngayon", sec_suit: "Talahanayan ng angkop na pananim", sec_compare: "Paghahambing ng mga plano", sec_plan: "Detalye ng napiling plano", sec_actions: "Plano ng gawain", sec_tm: "Time Machine", sec_methods: "Mga paraan at pinagmulan ng data", rep_print: "I-print / i-save ang PDF", rep_csv: "I-download ang spreadsheet (CSV)", rep_json: "I-download ang data (JSON)", generated: "Ginawa noong",
 };

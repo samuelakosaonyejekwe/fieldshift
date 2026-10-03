@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Kulaylaha", z_subtropical: "Kulaylaha-dhow", z_temperate: "Dhexdhexaad", z_cold: "Jiilaal qabow",
   z_arid: "engegan", z_semiarid: "badh-engegan", z_subhumid_dry: "qoyaan yar oo engegan", z_subhumid: "qoyaan yar", z_humid: "qoyan",
+  report: "Warbixin", rep_title: "Diyaarinta warbixinta", rep_sub: "Dooro waxa lagu darayo, kadib daabac / u kaydi PDF ahaan ama soo deji xogta.", rep_sections: "Qaybaha", rep_plan: "Qorshaha la faahfaahinayo", rep_n: "Qorshayaasha la isbarbardhigayo", sec_farm: "Beerta & hababka", sec_soil: "Ciidda", sec_climate: "Soo koobidda cimilada NASA", sec_now: "Xilligan ilaa hadda", sec_suit: "Shaxda ku habboonaanta dalagga", sec_compare: "Isbarbardhigga qorshayaasha", sec_plan: "Qorshaha la doortay oo faahfaahsan", sec_actions: "Qorshaha hawlaha", sec_tm: "Mashiinka Waqtiga", sec_methods: "Hababka & ilaha xogta", rep_print: "Daabac / kaydi PDF", rep_csv: "Soo deji xaashida (CSV)", rep_json: "Soo deji xogta (JSON)", generated: "La sameeyay",
 };

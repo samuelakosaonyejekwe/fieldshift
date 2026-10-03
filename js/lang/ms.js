@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Tropika", z_subtropical: "Subtropika", z_temperate: "Sederhana", z_cold: "Musim sejuk keras",
   z_arid: "gersang", z_semiarid: "separa gersang", z_subhumid_dry: "separa lembap kering", z_subhumid: "separa lembap", z_humid: "lembap",
+  report: "Laporan", rep_title: "Pembina laporan", rep_sub: "Pilih apa yang hendak dimasukkan, kemudian cetak / simpan sebagai PDF atau muat turun data.", rep_sections: "Bahagian", rep_plan: "Pelan untuk diperincikan", rep_n: "Pelan untuk dibandingkan", sec_farm: "Ladang & amalan", sec_soil: "Tanah", sec_climate: "Ringkasan iklim NASA", sec_now: "Musim setakat ini", sec_suit: "Jadual kesesuaian tanaman", sec_compare: "Perbandingan pelan", sec_plan: "Pelan dipilih secara terperinci", sec_actions: "Pelan tindakan", sec_tm: "Mesin Masa", sec_methods: "Kaedah & sumber data", rep_print: "Cetak / simpan PDF", rep_csv: "Muat turun hamparan (CSV)", rep_json: "Muat turun data (JSON)", generated: "Dijana",
 };

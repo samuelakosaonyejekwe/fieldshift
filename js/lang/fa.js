@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "استوایی", z_subtropical: "نیمه‌استوایی", z_temperate: "معتدل", z_cold: "زمستان سرد",
   z_arid: "خشک", z_semiarid: "نیمه‌خشک", z_subhumid_dry: "نیمه‌مرطوب خشک", z_subhumid: "نیمه‌مرطوب", z_humid: "مرطوب",
+  report: "گزارش", rep_title: "سازندهٔ گزارش", rep_sub: "انتخاب کنید چه چیزی گنجانده شود، سپس چاپ / ذخیره به‌صورت PDF کنید یا داده‌ها را دانلود کنید.", rep_sections: "بخش‌ها", rep_plan: "برنامه برای جزئیات", rep_n: "برنامه‌ها برای مقایسه", sec_farm: "مزرعه و روش‌ها", sec_soil: "خاک", sec_climate: "خلاصهٔ آب‌وهوای NASA", sec_now: "فصل تا امروز", sec_suit: "جدول تناسب محصولات", sec_compare: "مقایسهٔ برنامه‌ها", sec_plan: "جزئیات برنامهٔ انتخاب‌شده", sec_actions: "برنامهٔ عملیاتی", sec_tm: "ماشین زمان", sec_methods: "روش‌ها و منابع داده", rep_print: "چاپ / ذخیره PDF", rep_csv: "دانلود صفحه‌گسترده (CSV)", rep_json: "دانلود داده‌ها (JSON)", generated: "تهیه‌شده",
 };

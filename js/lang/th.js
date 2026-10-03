@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "เขตร้อน", z_subtropical: "กึ่งเขตร้อน", z_temperate: "เขตอบอุ่น", z_cold: "ฤดูหนาวเย็นจัด",
   z_arid: "แห้งแล้ง", z_semiarid: "กึ่งแห้งแล้ง", z_subhumid_dry: "กึ่งชื้นค่อนข้างแห้ง", z_subhumid: "กึ่งชื้น", z_humid: "ชื้น",
+  report: "รายงาน", rep_title: "สร้างรายงาน", rep_sub: "เลือกสิ่งที่จะใส่ แล้วพิมพ์ / บันทึกเป็น PDF หรือดาวน์โหลดข้อมูล", rep_sections: "หัวข้อ", rep_plan: "แผนที่จะแสดงรายละเอียด", rep_n: "แผนที่จะเปรียบเทียบ", sec_farm: "ฟาร์มและวิธีปฏิบัติ", sec_soil: "ดิน", sec_climate: "สรุปภูมิอากาศจาก NASA", sec_now: "ฤดูนี้จนถึงตอนนี้", sec_suit: "ตารางความเหมาะสมของพืช", sec_compare: "เปรียบเทียบแผน", sec_plan: "รายละเอียดแผนที่เลือก", sec_actions: "แผนปฏิบัติ", sec_tm: "ไทม์แมชชีน", sec_methods: "วิธีการและแหล่งข้อมูล", rep_print: "พิมพ์ / บันทึก PDF", rep_csv: "ดาวน์โหลดสเปรดชีต (CSV)", rep_json: "ดาวน์โหลดข้อมูล (JSON)", generated: "สร้างเมื่อ",
 };

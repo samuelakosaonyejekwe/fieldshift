@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Ilẹ̀ olóoru", z_subtropical: "Ilẹ̀ olóoru díẹ̀", z_temperate: "Ilẹ̀ ìwọ̀ntúnwọ̀nsì", z_cold: "Ìgbà òtútù líle",
   z_arid: "gbígbẹ", z_semiarid: "gbígbẹ díẹ̀", z_subhumid_dry: "ọ̀rinrin díẹ̀ tó gbẹ", z_subhumid: "ọ̀rinrin díẹ̀", z_humid: "ọ̀rinrin",
+  report: "Ìròyìn", rep_title: "Olùkọ́ ìròyìn", rep_sub: "Yan ohun tí o fẹ́ fi kún un, lẹ́yìn náà tẹ̀ ẹ́ / fi pamọ́ bí PDF tàbí gba dátà sílẹ̀.", rep_sections: "Àwọn apá", rep_plan: "Ètò láti ṣàlàyé", rep_n: "Àwọn ètò láti fi wé ara wọn", sec_farm: "Oko àti àwọn ìṣe", sec_soil: "Ilẹ̀", sec_climate: "Àkópọ̀ ojú-ọjọ́ NASA", sec_now: "Àsìkò yìí títí di báyìí", sec_suit: "Tábìlì ìbámu irúgbìn", sec_compare: "Ìfiwéra àwọn ètò", sec_plan: "Ètò tí a yàn ní kíkún", sec_actions: "Ètò iṣẹ́", sec_tm: "Ẹ̀rọ Ìgbà", sec_methods: "Àwọn ọ̀nà àti orísun dátà", rep_print: "Tẹ̀ / fi PDF pamọ́", rep_csv: "Gba ìwé ìṣirò sílẹ̀ (CSV)", rep_json: "Gba dátà sílẹ̀ (JSON)", generated: "A ṣe é ní",
 };

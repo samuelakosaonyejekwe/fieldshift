@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: 'ਗਰਮ-ਤਰ', z_subtropical: 'ਉਪ-ਗਰਮ', z_temperate: 'ਮੱਧਮ', z_cold: 'ਠੰਢੀ ਸਰਦੀ ਵਾਲਾ',
   z_arid: 'ਸੁੱਕਾ', z_semiarid: 'ਅਰਧ-ਸੁੱਕਾ', z_subhumid_dry: 'ਸੁੱਕਾ ਅਰਧ-ਨਮ', z_subhumid: 'ਅਰਧ-ਨਮ', z_humid: 'ਨਮ',
+  report: "ਰਿਪੋਰਟ", rep_title: "ਰਿਪੋਰਟ ਬਣਾਓ", rep_sub: "ਚੁਣੋ ਕਿ ਕੀ ਸ਼ਾਮਲ ਕਰਨਾ ਹੈ, ਫਿਰ ਪ੍ਰਿੰਟ / PDF ਵਜੋਂ ਸੇਵ ਕਰੋ ਜਾਂ ਡਾਟਾ ਡਾਊਨਲੋਡ ਕਰੋ।", rep_sections: "ਭਾਗ", rep_plan: "ਵਿਸਥਾਰ ਲਈ ਯੋਜਨਾ", rep_n: "ਤੁਲਨਾ ਲਈ ਯੋਜਨਾਵਾਂ", sec_farm: "ਖੇਤ ਅਤੇ ਤਰੀਕੇ", sec_soil: "ਮਿੱਟੀ", sec_climate: "NASA ਮੌਸਮ ਸਾਰ", sec_now: "ਹੁਣ ਤੱਕ ਦਾ ਮੌਸਮ", sec_suit: "ਫ਼ਸਲ ਅਨੁਕੂਲਤਾ ਸਾਰਣੀ", sec_compare: "ਯੋਜਨਾਵਾਂ ਦੀ ਤੁਲਨਾ", sec_plan: "ਚੁਣੀ ਯੋਜਨਾ ਵਿਸਥਾਰ ਵਿੱਚ", sec_actions: "ਕੰਮ ਦੀ ਯੋਜਨਾ", sec_tm: "ਸਮਾਂ ਮਸ਼ੀਨ", sec_methods: "ਤਰੀਕੇ ਅਤੇ ਡਾਟਾ ਸਰੋਤ", rep_print: "ਪ੍ਰਿੰਟ / PDF ਸੇਵ ਕਰੋ", rep_csv: "ਸਪ੍ਰੈਡਸ਼ੀਟ ਡਾਊਨਲੋਡ ਕਰੋ (CSV)", rep_json: "ਡਾਟਾ ਡਾਊਨਲੋਡ ਕਰੋ (JSON)", generated: "ਤਿਆਰ ਕੀਤਾ",
 };

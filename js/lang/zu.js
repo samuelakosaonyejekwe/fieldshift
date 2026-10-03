@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Okushisayo (tropical)", z_subtropical: "Okucishe kushise (subtropical)", z_temperate: "Okumaphakathi", z_cold: "Ubusika obubandayo",
   z_arid: "komile", z_semiarid: "komile kancane", z_subhumid_dry: "kunomswakama omncane owomile", z_subhumid: "kunomswakama omncane", z_humid: "kunomswakama",
+  report: "Umbiko", rep_title: "Umakhi wombiko", rep_sub: "Khetha okumele kufakwe, bese uphrinta / ulondoloza njenge-PDF noma ulande idatha.", rep_sections: "Izigaba", rep_plan: "Uhlelo oluchazwa kabanzi", rep_n: "Izinhlelo ezizoqhathaniswa", sec_farm: "Ipulazi nezindlela", sec_soil: "Inhlabathi", sec_climate: "Isifinyezo sesimo sezulu se-NASA", sec_now: "Isizini kuze kube manje", sec_suit: "Ithebula lokufaneleka kwezitshalo", sec_compare: "Ukuqhathanisa izinhlelo", sec_plan: "Uhlelo olukhethiwe ngokuningiliziwe", sec_actions: "Uhlelo lomsebenzi", sec_tm: "Umshini Wesikhathi", sec_methods: "Izindlela nemithombo yedatha", rep_print: "Phrinta / londoloza i-PDF", rep_csv: "Landa isipredishithi (CSV)", rep_json: "Landa idatha (JSON)", generated: "Kwenziwe",
 };

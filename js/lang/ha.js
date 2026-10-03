@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Mai zafi (tropical)", z_subtropical: "Kusa da mai zafi", z_temperate: "Matsakaici", z_cold: "Sanyin hunturu",
   z_arid: "busasshe", z_semiarid: "ɗan busasshe", z_subhumid_dry: "ɗan danshi mai bushewa", z_subhumid: "ɗan danshi", z_humid: "mai danshi",
+  report: "Rahoto", rep_title: "Mai gina rahoto", rep_sub: "Zaɓi abin da za a saka, sannan a buga / ajiye a matsayin PDF ko a sauke bayanan.", rep_sections: "Sassa", rep_plan: "Tsarin da za a yi bayani", rep_n: "Tsare-tsaren da za a kwatanta", sec_farm: "Gona da ayyuka", sec_soil: "Ƙasa", sec_climate: "Taƙaitaccen yanayi na NASA", sec_now: "Damina zuwa yanzu", sec_suit: "Teburin dacewar amfanin gona", sec_compare: "Kwatanta tsare-tsare", sec_plan: "Cikakken bayani kan tsarin da aka zaɓa", sec_actions: "Tsarin aiki", sec_tm: "Injin Lokaci", sec_methods: "Hanyoyi da tushen bayanai", rep_print: "Buga / ajiye PDF", rep_csv: "Sauke takardar lissafi (CSV)", rep_json: "Sauke bayanai (JSON)", generated: "An samar",
 };

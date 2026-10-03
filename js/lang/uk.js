@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Тропічна", z_subtropical: "Субтропічна", z_temperate: "Помірна", z_cold: "Холодна зима",
   z_arid: "арідна", z_semiarid: "напівпосушлива", z_subhumid_dry: "сухувата субгумідна", z_subhumid: "субгумідна", z_humid: "волога",
+  report: "Звіт", rep_title: "Конструктор звіту", rep_sub: "Оберіть, що включити, потім друкуйте / збережіть як PDF або завантажте дані.", rep_sections: "Розділи", rep_plan: "План для деталізації", rep_n: "Плани для порівняння", sec_farm: "Господарство й практики", sec_soil: "Ґрунт", sec_climate: "Кліматичний підсумок NASA", sec_now: "Цей сезон", sec_suit: "Таблиця придатності культур", sec_compare: "Порівняння планів", sec_plan: "Обраний план детально", sec_actions: "План дій", sec_tm: "Машина часу", sec_methods: "Методи та джерела даних", rep_print: "Друк / зберегти PDF", rep_csv: "Завантажити таблицю (CSV)", rep_json: "Завантажити дані (JSON)", generated: "Створено",
 };

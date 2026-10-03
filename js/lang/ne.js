@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "उष्ण", z_subtropical: "उपोष्ण", z_temperate: "समशीतोष्ण", z_cold: "चिसो जाडो",
   z_arid: "सुक्खा", z_semiarid: "अर्ध-सुक्खा", z_subhumid_dry: "सुक्खा अर्ध-आर्द्र", z_subhumid: "अर्ध-आर्द्र", z_humid: "आर्द्र",
+  report: "प्रतिवेदन", rep_title: "प्रतिवेदन निर्माता", rep_sub: "के समावेश गर्ने छान्नुहोस्, त्यसपछि प्रिन्ट / PDF को रूपमा सेभ गर्नुहोस् वा डाटा डाउनलोड गर्नुहोस्।", rep_sections: "खण्डहरू", rep_plan: "विस्तारमा हेर्ने योजना", rep_n: "तुलना गर्ने योजनाहरू", sec_farm: "खेत र अभ्यासहरू", sec_soil: "माटो", sec_climate: "NASA जलवायु सारांश", sec_now: "यो मौसम अहिलेसम्म", sec_suit: "बाली उपयुक्तता तालिका", sec_compare: "योजना तुलना", sec_plan: "छानिएको योजना विस्तारमा", sec_actions: "कार्य योजना", sec_tm: "समय यन्त्र", sec_methods: "विधि र डाटा स्रोतहरू", rep_print: "प्रिन्ट / PDF सेभ", rep_csv: "स्प्रेडसिट डाउनलोड (CSV)", rep_json: "डाटा डाउनलोड (JSON)", generated: "तयार गरिएको",
 };

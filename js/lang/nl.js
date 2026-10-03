@@ -195,4 +195,5 @@ export default {
   // zones
   z_tropical: "Tropisch", z_subtropical: "Subtropisch", z_temperate: "Gematigd", z_cold: "Koude winter",
   z_arid: "aride", z_semiarid: "semi-aride", z_subhumid_dry: "droog subhumide", z_subhumid: "subhumide", z_humid: "humide",
+  report: "Rapport", rep_title: "Rapportbouwer", rep_sub: "Kies wat je wilt opnemen en print / bewaar als PDF of download de gegevens.", rep_sections: "Onderdelen", rep_plan: "Plan om uit te werken", rep_n: "Plannen om te vergelijken", sec_farm: "Bedrijf & werkwijze", sec_soil: "Bodem", sec_climate: "NASA-klimaatoverzicht", sec_now: "Dit seizoen tot nu toe", sec_suit: "Tabel geschiktheid gewassen", sec_compare: "Vergelijking van plannen", sec_plan: "Gekozen plan in detail", sec_actions: "Actieplan", sec_tm: "Tijdmachine", sec_methods: "Methoden & databronnen", rep_print: "Afdrukken / PDF opslaan", rep_csv: "Spreadsheet downloaden (CSV)", rep_json: "Gegevens downloaden (JSON)", generated: "Gemaakt op",
 };
