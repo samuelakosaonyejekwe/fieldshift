@@ -22,8 +22,8 @@
 <meta name="application-name" content="FieldShift">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://power.larc.nasa.gov" crossorigin>
-<link rel="modulepreload" href="js/app.js">
-<link rel="stylesheet" href="css/app.css">
+<link rel="modulepreload" href="js/app.js?v=1.9.0">
+<link rel="stylesheet" href="css/app.css?v=1.9.0">
 </head>
 <body>
 <div id="app">
@@ -31,7 +31,19 @@
 </div>
 <div id="tip" class="tip" hidden role="tooltip"></div>
 <noscript><p style="padding:2rem;font-family:sans-serif">FieldShift needs JavaScript enabled.</p></noscript>
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js?v=1.9.0"></script>
+<script>
+// Self-heal: if the app has not started after 10 s (e.g. stale or mismatched cached files), clear caches once and reload.
+setTimeout(function () {
+  if (window.__fsBooted) return;
+  try { if (sessionStorage.getItem('fs-healed')) return; sessionStorage.setItem('fs-healed', '1'); } catch (e) {}
+  var done = function () { location.reload(); };
+  var p = [];
+  if (window.caches) p.push(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== 'fs-data' && k !== 'fs-demos'; }).map(function (k) { return caches.delete(k); })); }));
+  if (navigator.serviceWorker) p.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+  Promise.all(p).then(done, done);
+}, 10000);
+</script>
 <script nomodule>document.getElementById('app').innerHTML='<p style="padding:2rem;font-family:sans-serif">Please update your browser to use FieldShift.</p>';</script>
 </body>
 </html>

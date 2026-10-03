@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js';
-import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js';
-import * as CH from './charts.js';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.0';
+import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.0';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.0';
+import * as CH from './charts.js?v=1.9.0';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.8.0';
+export const APP_VERSION = '1.9.0';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
@@ -121,7 +121,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.9.0', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -138,7 +138,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js');
+  engineMod = engineMod || await import('./engine.js?v=1.9.0');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
@@ -152,6 +152,7 @@ function inputs() {
 
 // ---------------- Boot ----------------
 async function boot() {
+  window.__fsBooted = true;
   if (!S.lang) S.lang = guessLang();
   await setLang(S.lang);
   applyPrefs();
@@ -234,13 +235,27 @@ function sizeCharts() {
 window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => { const w = document.documentElement.clientWidth; if (Math.abs(w - (window._lw || 0)) > 40) { window._lw = w; sizeCharts(); if (['climate'].includes(S.tab)) go(S.tab); } }, 250); });
 
 function go(tab) {
-  sizeCharts();
   if (!S.farm && tab !== 'farm' && tab !== 'about') tab = 'farm';
   S.tab = tab; save();
+  // switch the page first, so navigation can never get stuck on a rendering problem
   $$('.view').forEach((v) => (v.hidden = v.id !== 'v-' + tab));
   $$('#tabs button').forEach((b) => b.setAttribute('aria-current', b.dataset.go === tab ? 'page' : 'false'));
-  ({ farm: renderFarm, climate: renderClimate, goals: renderGoals, plans: renderPlans, lab: renderLab, about: renderAbout })[tab]?.();
   window.scrollTo({ top: 0 });
+  try {
+    sizeCharts();
+    ({ farm: renderFarm, climate: renderClimate, goals: renderGoals, plans: renderPlans, lab: renderLab, about: renderAbout })[tab]?.();
+  } catch (err) {
+    console.error(err);
+    if (err instanceof TypeError) heal(); // mismatched cached files: fetch a clean copy
+    else $('#v-' + tab).innerHTML = `<p class="note warn">⚠️ ${esc(err.message)}</p>`;
+  }
+}
+// Clear cached app files and reload onto the latest version (at most once per session)
+async function heal() {
+  try { if (sessionStorage.getItem('fs-healed')) return; sessionStorage.setItem('fs-healed', '1'); } catch { /* */ }
+  try { for (const k of await caches.keys()) if (k !== 'fs-data' && k !== 'fs-demos') await caches.delete(k); } catch { /* */ }
+  try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch { /* */ }
+  location.reload();
 }
 
 function bindGlobal() {
@@ -248,10 +263,21 @@ function bindGlobal() {
     const g = e.target.closest('[data-go]');
     if (g) { e.preventDefault(); go(g.dataset.go); return; }
     const a = e.target.closest('[data-act]');
-    if (a) { ACT[a.dataset.act]?.(a, e); }
+    if (a) {
+      try { const r = ACT[a.dataset.act]?.(a, e); if (r?.catch) r.catch(fail); } catch (err) { fail(err); }
+    }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 }
+
+// any unexpected error: tell the user briefly, recover stale code if that is the cause
+function fail(err) {
+  console.error(err);
+  busy(null);
+  if (err instanceof TypeError && /is not a function|does not provide/.test(err.message)) heal();
+  else toast('⚠️ ' + (err?.message || err), 5000);
+}
+window.addEventListener('unhandledrejection', (e) => { if (/does not provide|Failed to fetch dynamically|Importing a module/.test(String(e.reason))) heal(); });
 
 // ---------------- Busy / toast ----------------
 function busy(msg) { const b = $('#busy'); if (!b) return; b.hidden = !msg; if (msg) $('#busyMsg').textContent = msg; }
@@ -340,8 +366,10 @@ async function run(first = false) {
     custom = null;
   } catch (err) { console.error(err); toast('Engine error: ' + err.message, 6000); }
   $('#v-plans')?.classList.remove('stale');
-  if (!first && S.tab === 'plans') renderPlans();
-  if (!first && S.tab === 'lab') renderLab();
+  try {
+    if (!first && S.tab === 'plans') renderPlans();
+    if (!first && S.tab === 'lab') renderLab();
+  } catch (err) { fail(err); }
 }
 
 // ---------------- FARM TAB ----------------
@@ -1232,7 +1260,12 @@ const ACT = {
     if (i === 18) return sheet(settingsHTML());
     if (tab) go(tab);
   },
-  resetAll: () => { try { localStorage.removeItem('fs-state'); } catch { /* */ } location.reload(); },
+  resetAll: async () => {
+    try { localStorage.removeItem('fs-state'); sessionStorage.removeItem('fs-healed'); } catch { /* */ }
+    try { for (const k of await caches.keys()) await caches.delete(k); } catch { /* */ }
+    try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch { /* */ }
+    location.reload();
+  },
 };
 
 boot();

@@ -1,7 +1,7 @@
 // FieldShift rotation engine.
 // Pure functions: climate (NASA POWER) + soil + farmer inputs -> ranked rotations.
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS } from './crops.js';
-import { deriveClimate, climateInsights, textureClass, texGroup, awcOf, kFactor, DAYS, effRain } from './data.js';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS } from './crops.js?v=1.9.0';
+import { deriveClimate, climateInsights, textureClass, texGroup, awcOf, kFactor, DAYS, effRain } from './data.js?v=1.9.0';
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const mean = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);

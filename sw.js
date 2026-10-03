@@ -1,5 +1,5 @@
 // FieldShift service worker: app shell offline, NASA/soil data network-first with cache fallback.
-const VER = 'fieldshift-v8';
+const VER = 'fieldshift-1.9.0';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/app.js', 'js/data.js', 'js/engine.js', 'js/crops.js', 'js/charts.js', 'js/i18n.js', 'js/worker.js',
@@ -20,7 +20,8 @@ self.addEventListener('message', (e) => {
   }
 });
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VER && k !== 'fs-data' && k !== 'fs-demos').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VER && k !== 'fs-data' && k !== 'fs-demos').map((k) => caches.delete(k))))
+    .then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', (e) => {
   const req = e.request;
