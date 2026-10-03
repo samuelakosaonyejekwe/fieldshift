@@ -48,19 +48,28 @@ export async function loadDemo(id) {
 }
 
 // NASA POWER climate only (fast, ~2 s). Soil is fetched separately so it never blocks.
-export async function fetchFarmData(lat, lon) {
+// Cached copies are reused for 3 days, then refreshed straight from NASA (offline: cached copy is used).
+const FRESH_MS = 3 * 864e5;
+export async function fetchFarmData(lat, lon, { force = false } = {}) {
   const k = key(lat, lon);
   const cached = cacheGet('farm:' + k);
-  if (cached) return { ...cached, fromCache: true };
+  const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+  if (cached && !force && (!online || Date.now() - (cached.t || 0) < FRESH_MS)) return { ...cached, fromCache: true };
   const end = new Date().getFullYear() - 1;
-  const [m, c] = await Promise.all([
-    getJSON(`${POWER}/monthly/point?parameters=${MP}&community=AG&longitude=${lon}&latitude=${lat}&start=1995&end=${end}&format=JSON`, 60000),
-    getJSON(`${POWER}/climatology/point?parameters=${CP}&community=AG&longitude=${lon}&latitude=${lat}&format=JSON`, 60000),
-  ]);
-  const out = { lat, lon, monthly: m.properties.parameter, clim: c.properties.parameter, elev: m.geometry.coordinates[2] ?? null, soil: null };
-  cacheSet('farm:' + k, out);
-  return out;
+  try {
+    const [m, c] = await Promise.all([
+      getJSON(`${POWER}/monthly/point?parameters=${MP}&community=AG&longitude=${lon}&latitude=${lat}&start=1995&end=${end}&format=JSON`, 60000),
+      getJSON(`${POWER}/climatology/point?parameters=${CP}&community=AG&longitude=${lon}&latitude=${lat}&format=JSON`, 60000),
+    ]);
+    const out = { lat, lon, monthly: m.properties.parameter, clim: c.properties.parameter, elev: m.geometry.coordinates[2] ?? null, soil: null, t: Date.now() };
+    cacheSet('farm:' + k, out);
+    return out;
+  } catch (e) {
+    if (cached) return { ...cached, fromCache: true };
+    throw e;
+  }
 }
+export const monthsIn = (raw) => Object.keys(raw?.monthly?.T2M || {}).filter((x) => raw.monthly.T2M[x] > -900).length;
 
 export async function fetchSoil(lat, lon) {
   const k = 'soil:' + key(lat, lon);

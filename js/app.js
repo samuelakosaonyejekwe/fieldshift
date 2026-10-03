@@ -1,7 +1,7 @@
 // FieldShift — interface controller
 import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js';
 import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js';
-import { DEMOS, loadDemo, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js';
 import * as CH from './charts.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -246,8 +246,17 @@ async function openFarm(f, quiet = false) {
   busy(t('loading_engine'));
   await run(true);
   busy(null);
-  if (raw.fromCache && !quiet) toast(t('from_cache'));
+  if (raw.fromCache && !quiet && !navigator.onLine) toast(t('from_cache'));
   go(quiet ? (S.tab === 'farm' ? 'plans' : S.tab) : 'plans');
+  // demo farms ship with a snapshot; when online, pull the newest NASA record and update quietly
+  if (f.demo && navigator.onLine) {
+    const lat = f.lat, lon = f.lon, soil = raw.soil;
+    fetchFarmData(lat, lon).then((fresh) => {
+      if (!S.farm || S.farm.lat !== +lat || S.farm.lon !== +lon || monthsIn(fresh) <= monthsIn(raw)) return;
+      raw = { ...fresh, soil }; base = buildClimate(raw); ins = climateInsights(base); shift = null;
+      run().then(() => { if (S.tab === 'climate') renderClimate(); });
+    }).catch(() => {});
+  }
   if (soilP) {
     const lat = f.lat, lon = f.lon;
     soilP.then((sg) => {
