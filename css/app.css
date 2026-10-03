@@ -63,15 +63,17 @@ a { color: var(--accent); }
 
 /* navigation: bottom bar on phones, top strip on wide screens */
 .tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
-.tabs button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: .45rem .1rem .5rem; font-size: .72rem; color: var(--muted); min-height: var(--nav-h); position: relative; }
-.tabs button[aria-current="page"] { color: var(--brand); font-weight: 650; }
-.tabs button[aria-current="page"]::before { content: ""; position: absolute; top: 0; left: 25%; right: 25%; height: 3px; border-radius: 0 0 3px 3px; background: var(--brand); }
+.tabs a { text-decoration: none; }
+.tabs a { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: .45rem .1rem .5rem; font-size: .72rem; color: var(--muted); min-height: var(--nav-h); position: relative; }
+.tabs a[aria-current="page"] { color: var(--brand); font-weight: 650; }
+.tabs a[aria-current="page"]::before { content: ""; position: absolute; top: 0; left: 25%; right: 25%; height: 3px; border-radius: 0 0 3px 3px; background: var(--brand); }
 .tab-n { display: none; }
 main { max-width: 1120px; margin: 0 auto; padding: 14px 12px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)); }
 @media (min-width: 900px) {
   .tabs { position: sticky; top: 61px; bottom: auto; display: flex; justify-content: center; gap: .3rem; border-top: 0; border-bottom: 1px solid var(--line); padding: 0 1rem; }
-  .tabs button { flex-direction: row; gap: .45rem; font-size: .95rem; min-height: 50px; padding: 0 1rem; }
-  .tabs button[aria-current="page"]::before { top: auto; bottom: 0; left: 12%; right: 12%; border-radius: 3px 3px 0 0; }
+  .tabs a { text-decoration: none; }
+.tabs a { flex-direction: row; gap: .45rem; font-size: .95rem; min-height: 50px; padding: 0 1rem; }
+  .tabs a[aria-current="page"]::before { top: auto; bottom: 0; left: 12%; right: 12%; border-radius: 3px 3px 0 0; }
   .tab-n { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--surface2); font-size: .7rem; }
   [aria-current="page"] .tab-n { background: var(--brand); color: #fff; }
   main { padding: 22px 24px 60px; }

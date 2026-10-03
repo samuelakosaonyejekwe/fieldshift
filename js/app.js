@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.1';
-import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.1';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.1';
-import * as CH from './charts.js?v=1.9.1';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.2';
+import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.2';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.2';
+import * as CH from './charts.js?v=1.9.2';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.9.1';
+export const APP_VERSION = '1.9.2';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
@@ -121,7 +121,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js?v=1.9.1', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.9.2', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -138,7 +138,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js?v=1.9.1');
+  engineMod = engineMod || await import('./engine.js?v=1.9.2');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
@@ -161,6 +161,8 @@ async function boot() {
   renderShell();
   CH.bindTips(document.body);
   bindGlobal();
+  const h0 = location.hash.slice(1);
+  if (TABS.some(([k]) => k === h0)) S.tab = h0;
   if (S.farm) openFarm(S.farm, true);
   else go(S.tab === 'about' ? 'about' : 'farm');
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -213,7 +215,7 @@ function renderShell() {
       <button class="icon-btn" data-act="settings" aria-label="${esc(t('settings'))}">${ico('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>', 20)}</button>
     </div>
   </header>
-  <nav class="tabs" id="tabs" aria-label="Sections">${TABS.map(([k, p], i) => `<button data-go="${k}" id="tab-${k}"><span class="tab-n">${i + 1}</span>${ico(p)}<span>${esc(t('tab_' + k))}</span></button>`).join('')}</nav>
+  <nav class="tabs" id="tabs" aria-label="Sections">${TABS.map(([k, p], i) => `<a href="#${k}" data-go="${k}" id="tab-${k}"><span class="tab-n">${i + 1}</span>${ico(p)}<span>${esc(t('tab_' + k))}</span></a>`).join('')}</nav>
   <main id="main">${TABS.map(([k]) => `<section id="v-${k}" class="view" hidden></section>`).join('')}<section id="v-about" class="view" hidden></section></main>
   <div id="busy" class="busy" hidden><div class="spin"></div><span id="busyMsg"></span></div>`;
   $('#langSel').onchange = async (e) => { S.lang = e.target.value; await setLang(S.lang); applyPrefs(); save(); renderShell(); go(S.tab); updateChip(); };
@@ -235,12 +237,14 @@ function sizeCharts() {
 }
 window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => { const w = document.documentElement.clientWidth; if (Math.abs(w - (window._lw || 0)) > 40) { window._lw = w; sizeCharts(); if (['climate'].includes(S.tab)) go(S.tab); } }, 250); });
 
-function go(tab) {
+function go(tab, fromHistory = false) {
   if (!S.farm && tab !== 'farm' && tab !== 'about') tab = 'farm';
   S.tab = tab; save();
   // switch the page first, so navigation can never get stuck on a rendering problem
   $$('.view').forEach((v) => (v.hidden = v.id !== 'v-' + tab));
-  $$('#tabs button').forEach((b) => b.setAttribute('aria-current', b.dataset.go === tab ? 'page' : 'false'));
+  $$('#tabs a').forEach((b) => b.setAttribute('aria-current', b.dataset.go === tab ? 'page' : 'false'));
+  // keep the address bar in step: back/forward move between tabs, and the link itself works without JS click handling
+  if (location.hash !== '#' + tab) { try { history[fromHistory ? 'replaceState' : 'pushState'](null, '', '#' + tab); } catch { /* */ } }
   window.scrollTo({ top: 0 });
   try {
     sizeCharts();
@@ -270,6 +274,10 @@ function bindGlobal() {
     }
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+  // navigation through the address bar / back button / plain link activation
+  const fromHash = () => { const h = location.hash.slice(1); if (TABS.some(([k]) => k === h) && h !== S.tab) go(h, true); };
+  window.addEventListener('hashchange', fromHash);
+  window.addEventListener('popstate', fromHash);
 }
 
 // any unexpected error: tell the user briefly, recover stale code if that is the cause
