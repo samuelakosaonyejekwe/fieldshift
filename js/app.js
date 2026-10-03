@@ -1,7 +1,7 @@
 // FieldShift — interface controller
 import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js';
 import { t, setLang, lang, LANGS, cropName, monthName, guessLang } from './i18n.js';
-import { DEMOS, loadDemo, fetchFarmData, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, geocode, reverseGeocode } from './data.js';
+import { DEMOS, loadDemo, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, geocode, reverseGeocode } from './data.js';
 import * as CH from './charts.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -196,38 +196,56 @@ function toast(msg, ms = 3200) {
 
 // ---------------- Farm loading ----------------
 async function openFarm(f, quiet = false) {
-  const steps = [];
+  let soilP = null;
   try {
     busy(t('loading_power'));
     if (f.demo) raw = await loadDemo(f.demo);
-    else raw = await fetchFarmData(f.lat, f.lon, (s) => busy(t(s === 'soil' ? 'loading_soil' : 'loading_power')));
-    if (raw.fromCache && !quiet) steps.push(t('from_cache'));
+    else {
+      // climate and soil start together; soil never blocks the first result
+      soilP = fetchSoil(f.lat, f.lon).catch(() => null);
+      raw = await fetchFarmData(f.lat, f.lon);
+      const quick = await Promise.race([soilP, new Promise((r) => setTimeout(() => r(undefined), 2500))]);
+      if (quick !== undefined) { raw = { ...raw, soil: quick }; soilP = null; }
+    }
   } catch (err) {
     busy(null);
     toast(t('err_fetch'), 5000);
-    if (!quiet) go('farm');
-    else { S.farm = null; save(); go('farm'); }
+    if (quiet) { S.farm = null; save(); }
+    go('farm');
     return;
   }
   const sameFarm = S.farm && Math.abs(S.farm.lat - f.lat) < 1e-3 && Math.abs(S.farm.lon - f.lon) < 1e-3;
-  S.farm = { name: f.name || null, lat: +f.lat, lon: +f.lon, demo: f.demo || null };
+  S.farm = { name: f.name || (sameFarm ? S.farm.name : null), lat: +f.lat, lon: +f.lon, demo: f.demo || null };
   base = buildClimate(raw);
   ins = climateInsights(base);
-  const auto = parseSoil(raw.soil);
-  S.soilAuto = auto;
-  if (!sameFarm || !S.soil || !S.soilEdited) { S.soil = { ...(auto || DEFAULT_SOIL) }; S.soilEdited = false; }
+  applySoil(raw.soil, sameFarm);
   if (!sameFarm) {
     S.practice = { ...structuredClone(DEF.practice), ...(f.demo ? DEMO_PRACTICE[f.demo] || {} : {}) };
     S.builder = { seq: [], sec: [] };
   }
   shift = null; ndvi = null; custom = null;
+  S.soilPending = !!soilP;
   save(); updateChip();
   if (!S.farm.name) reverseGeocode(f.lat, f.lon, lang()).then((n) => { if (n && S.farm) { S.farm.name = n; save(); updateChip(); if (S.tab === 'farm') renderFarm(); } });
   busy(t('loading_engine'));
   await run(true);
   busy(null);
-  if (steps.length) toast(steps.join(' · '));
+  if (raw.fromCache && !quiet) toast(t('from_cache'));
   go(quiet ? (S.tab === 'farm' ? 'plans' : S.tab) : 'plans');
+  if (soilP) {
+    const lat = f.lat, lon = f.lon;
+    soilP.then((sg) => {
+      if (!S.farm || S.farm.lat !== +lat || S.farm.lon !== +lon) return;
+      S.soilPending = false;
+      if (sg) { raw = { ...raw, soil: sg }; applySoil(sg, false); save(); toast(t('soil_src').split('.')[0] + ' ✓'); run(); }
+      if (S.tab === 'farm') renderFarm();
+    });
+  }
+}
+function applySoil(sg, keepEdits) {
+  const auto = parseSoil(sg);
+  S.soilAuto = auto;
+  if (!keepEdits || !S.soil || !S.soilEdited) { S.soil = { ...(auto || DEFAULT_SOIL) }; S.soilEdited = false; }
 }
 
 let runT = null, runSeq = 0;
@@ -270,7 +288,7 @@ function renderFarm() {
     </article>
     <article class="card">
       <h2>${esc(t('soil_title'))} <small class="pill">${esc(t('texture'))}: ${esc(cls.replace(/_/g, ' '))}</small></h2>
-      <p class="muted small">${esc(S.soilAuto ? t('soil_src') : t('soil_none'))}</p>
+      <p class="muted small">${S.soilPending ? `<span class="spin sm"></span> ${esc(t('loading_soil'))}` : esc(S.soilAuto ? t('soil_src') : t('soil_none'))}</p>
       <div class="texbar" aria-hidden="true"><i style="width:${s.sand}%;background:#e7c98f"></i><i style="width:${s.silt}%;background:#b9a07a"></i><i style="width:${s.clay}%;background:#8a6a4f"></i></div>
       <div class="fields">
         ${num('sand', t('sand'), s.sand, 0, 100, 1, '%')}${num('silt', t('silt'), s.silt, 0, 100, 1, '%')}${num('clay', t('clay'), s.clay, 0, 100, 1, '%')}

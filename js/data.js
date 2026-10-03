@@ -47,35 +47,34 @@ export async function loadDemo(id) {
   return getJSON(`data/demo/${id}.json`);
 }
 
-export async function fetchFarmData(lat, lon, onStep = () => {}) {
+// NASA POWER climate only (fast, ~2 s). Soil is fetched separately so it never blocks.
+export async function fetchFarmData(lat, lon) {
   const k = key(lat, lon);
   const cached = cacheGet('farm:' + k);
   if (cached) return { ...cached, fromCache: true };
   const end = new Date().getFullYear() - 1;
-  onStep('power');
   const [m, c] = await Promise.all([
     getJSON(`${POWER}/monthly/point?parameters=${MP}&community=AG&longitude=${lon}&latitude=${lat}&start=1995&end=${end}&format=JSON`, 60000),
     getJSON(`${POWER}/climatology/point?parameters=${CP}&community=AG&longitude=${lon}&latitude=${lat}&format=JSON`, 60000),
   ]);
-  onStep('soil');
-  let soil = null;
-  try { soil = await fetchSoil(lat, lon); } catch { soil = null; }
-  const out = { lat, lon, monthly: m.properties.parameter, clim: c.properties.parameter, elev: m.geometry.coordinates[2] ?? null, soil };
+  const out = { lat, lon, monthly: m.properties.parameter, clim: c.properties.parameter, elev: m.geometry.coordinates[2] ?? null, soil: null };
   cacheSet('farm:' + k, out);
   return out;
 }
 
 export async function fetchSoil(lat, lon) {
-  // SoilGrids masks cities and water; probe nearby farmland if the exact point is empty
-  for (const [dy, dx] of [[0, 0], [0.03, 0], [-0.03, 0], [0, 0.03], [0, -0.03], [0.06, 0.06], [-0.06, -0.06]]) {
-    const r = await fetchSoilAt(+(lat + dy).toFixed(4), +(lon + dx).toFixed(4));
-    if (parseSoil(r)) return { ...r, probe: [dy, dx] };
-  }
+  const k = 'soil:' + key(lat, lon);
+  const c = cacheGet(k);
+  if (c) return c;
+  // SoilGrids masks cities and water: probe the point and nearby farmland in parallel, prefer the closest hit
+  const offs = [[0, 0], [0.03, 0], [-0.03, 0], [0, 0.03], [0, -0.03], [0.06, 0.06], [-0.06, -0.06]];
+  const tries = offs.map(([dy, dx]) => fetchSoilAt(+(lat + dy).toFixed(4), +(lon + dx).toFixed(4)).then((r) => (parseSoil(r) ? { ...r, probe: [dy, dx] } : null)).catch(() => null));
+  for (const t of tries) { const r = await t; if (r) { cacheSet(k, r); return r; } }
   return null;
 }
 async function fetchSoilAt(lat, lon) {
   const props = ['soc', 'phh2o', 'clay', 'sand', 'silt', 'nitrogen', 'cec', 'bdod'].map((p) => 'property=' + p).join('&');
-  return getJSON(`https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon}&lat=${lat}&${props}&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean`, 30000);
+  return getJSON(`https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon}&lat=${lat}&${props}&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean`, 25000);
 }
 
 // ---------- Soil ----------

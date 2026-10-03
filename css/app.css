@@ -318,3 +318,4 @@ select { border: 1px solid var(--line); border-radius: 10px; background: var(--s
 }
 .seqc .mini-sel { min-height: 30px; padding: .1rem .3rem; font-size: .78rem; font-weight: 500; margin-top: .2rem; }
 .seqedit .seqc { flex-wrap: wrap; }
+.spin.sm { width: 14px; height: 14px; border-width: 2px; display: inline-block; vertical-align: -2px; }
