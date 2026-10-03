@@ -126,4 +126,12 @@ export default {
   now_wet: 'Plus humide que la normale : bonne humidité pour semer ; surveillez l’engorgement et les maladies fongiques, protégez le sol nu de l’érosion.',
   now_ok: 'Proche de la normale : les plans ci-dessous devraient se comporter comme prévu cette saison.',
   now_hot: 'Plus chaud que la normale : les cultures sensibles à la chaleur peuvent souffrir à la floraison.',
+  install_title: "Installer FieldShift sur cet appareil",
+  install_sub: "Fonctionne comme une vraie application : depuis l’écran d’accueil, hors ligne et en mode avion.",
+  install_ios: "Sur iPhone / iPad : touchez Partager {share} dans Safari, puis « Sur l’écran d’accueil » {add}.",
+  install_other: "Dans le menu du navigateur, choisissez « Installer l’application » ou « Ajouter à l’écran d’accueil ». Sur iPhone, utilisez Safari.",
+  installed: "Installée ✓",
+  offline_ready: "Pack hors ligne prêt : application + {n} fermes de démonstration enregistrées sur cet appareil.",
+  offline_now: "Hors ligne — données enregistrées sur cet appareil.",
+  not_now: "Plus tard",
 };

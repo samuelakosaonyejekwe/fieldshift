@@ -126,4 +126,12 @@ export default {
   now_wet: 'Más húmedo de lo normal: buena humedad para sembrar; vigile el encharcamiento y los hongos, y proteja el suelo desnudo de la erosión.',
   now_ok: 'Cerca de lo normal: los planes de abajo deberían rendir como se espera esta temporada.',
   now_hot: 'Más caluroso de lo normal: los cultivos sensibles al calor pueden sufrir en la floración.',
+  install_title: "Instale FieldShift en este dispositivo",
+  install_sub: "Funciona como una app normal: se abre desde la pantalla de inicio, sin conexión y en modo avión.",
+  install_ios: "En iPhone / iPad: toque Compartir {share} en Safari y luego “Agregar a inicio” {add}.",
+  install_other: "En el menú del navegador elija “Instalar app” o “Agregar a la pantalla de inicio”. En iPhone use Safari.",
+  installed: "Instalada ✓",
+  offline_ready: "Paquete sin conexión listo: app + {n} fincas de demostración guardadas en este dispositivo.",
+  offline_now: "Sin conexión: usando datos guardados en este dispositivo.",
+  not_now: "Ahora no",
 };

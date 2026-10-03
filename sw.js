@@ -1,14 +1,26 @@
 // FieldShift service worker: app shell offline, NASA/soil data network-first with cache fallback.
-const VER = 'fieldshift-v4';
+const VER = 'fieldshift-v5';
 const SHELL = [
-  './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
+  './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/app.js', 'js/data.js', 'js/engine.js', 'js/crops.js', 'js/charts.js', 'js/i18n.js', 'js/worker.js',
 ];
+const LANG_FILES = ['es', 'fr', 'pt', 'sw', 'hi', 'ar', 'zh', 'bn', 'ru', 'ur', 'id', 'de', 'ja', 'tr', 'vi', 'fa', 'it', 'ha', 'yo', 'ig', 'am', 'ta', 'te', 'mr', 'pa'].map((l) => `js/lang/${l}.js`);
+// offline pack: every demo farm (fetched in the background after install)
+const DEMOS = ["addis", "bangladesh", "cordoba", "france", "free_state", "fresno", "heilongjiang", "iowa", "java", "kano", "lilongwe", "matogrosso", "mekong", "nakuru", "nile", "pampas", "peru", "punjab", "saskatoon", "sinaloa", "tamale", "ukraine", "wagga"].map((d) => `data/demo/${d}.json`);
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VER).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VER).then((c) => c.addAll(SHELL).then(() => Promise.all(LANG_FILES.map((u) => c.add(u).catch(() => {}))))).then(() => self.skipWaiting()));
+});
+self.addEventListener('message', (e) => {
+  if (e.data === 'offline-pack') {
+    caches.open('fs-demos').then(async (c) => {
+      for (const u of DEMOS) { if (!(await c.match(u))) { try { await c.add(u); } catch { /* retry next visit */ } } }
+      const n = (await c.keys()).length;
+      (await self.clients.matchAll()).forEach((cl) => cl.postMessage({ type: 'pack', n, total: DEMOS.length }));
+    });
+  }
 });
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VER && k !== 'fs-data').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VER && k !== 'fs-data' && k !== 'fs-demos').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', (e) => {
   const req = e.request;
@@ -27,7 +39,7 @@ self.addEventListener('fetch', (e) => {
   if (url.origin === location.origin) {
     e.respondWith(new Promise((resolve) => {
       let done = false;
-      const fromCache = () => caches.match(req, { ignoreSearch: true }).then((hit) => { if (!done && hit) { done = true; resolve(hit); } return hit; });
+      const fromCache = () => caches.match(req.mode === 'navigate' ? 'index.html' : req, { ignoreSearch: true }).then((hit) => { if (!done && hit) { done = true; resolve(hit); } return hit; });
       const timer = setTimeout(fromCache, 3000);
       fetch(req).then((r) => {
         clearTimeout(timer);

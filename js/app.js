@@ -1,6 +1,6 @@
 // FieldShift — interface controller
 import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js';
-import { t, setLang, lang, LANGS, cropName, monthName, guessLang } from './i18n.js';
+import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js';
 import { DEMOS, loadDemo, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js';
 import * as CH from './charts.js';
 
@@ -112,13 +112,25 @@ async function boot() {
   bindGlobal();
   if (S.farm) openFarm(S.farm, true);
   else go(S.tab === 'about' ? 'about' : 'farm');
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  window.addEventListener('offline', () => toast(t('offline')));
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then((reg) => {
+      // download the offline pack (all demo farms) once the app is idle
+      const go2 = () => reg.active?.postMessage('offline-pack');
+      'requestIdleCallback' in window ? requestIdleCallback(go2, { timeout: 8000 }) : setTimeout(go2, 4000);
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'pack' && e.data.n >= e.data.total) { try { if (!localStorage.getItem('fs-pack')) { localStorage.setItem('fs-pack', '1'); toast(t('offline_ready', { n: e.data.n })); } } catch { /* */ } }
+    });
+  }
+  const net = () => document.body.classList.toggle('is-offline', !navigator.onLine);
+  window.addEventListener('offline', () => { net(); toast(t('offline_now')); });
+  window.addEventListener('online', net); net();
 }
 
 function applyPrefs() {
   const r = document.documentElement;
   r.lang = S.lang;
+  r.dir = RTL.has(S.lang) ? 'rtl' : 'ltr';
   if (S.theme === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', S.theme);
   r.style.fontSize = `${S.fs * 100}%`;
   U = units();
@@ -141,6 +153,8 @@ function renderShell() {
     <div class="top-r">
       <label class="sel-lang">${ico('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>', 18)}
         <select id="langSel" aria-label="${esc(t('language'))}">${LANGS.map(([k, n]) => `<option value="${k}" ${k === S.lang ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+ <button class="btn sm primary install-btn" id="installBtn" data-act="install" hidden>⬇ <span>${esc(t('install'))}</span></button>
+      <button class="icon-btn" data-act="guide" aria-label="${esc(t('guide'))}" title="${esc(t('guide'))}">${ico('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01"/>', 20)}</button>
       <button class="icon-btn" data-act="settings" aria-label="${esc(t('settings'))}">${ico('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>', 20)}</button>
     </div>
   </header>
@@ -149,6 +163,7 @@ function renderShell() {
   <div id="busy" class="busy" hidden><div class="spin"></div><span id="busyMsg"></span></div>`;
   $('#langSel').onchange = async (e) => { S.lang = e.target.value; await setLang(S.lang); applyPrefs(); save(); renderShell(); go(S.tab); updateChip(); };
   updateChip();
+  updateInstall();
 }
 const logo = () => `<svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="var(--brand)"/><path d="M6 27c6-3 10-3 14 0s9 3 14 0" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M6 21c6-3 10-3 14 0s9 3 14 0" stroke="#ffd36e" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M20 19V8m0 4c-3-3-6-2-7 0 3 2 5 2 7 0zm0 2c3-3 6-2 7 0-3 2-5 2-7 0z" stroke="#fff" stroke-width="2" fill="#fff" stroke-linejoin="round"/></svg>`;
 
@@ -372,6 +387,7 @@ function landing() {
         <form id="coordForm" class="row gap"><input name="lat" type="number" step="any" min="-90" max="90" placeholder="${esc(t('lat'))}" required><input name="lon" type="number" step="any" min="-180" max="180" placeholder="${esc(t('lon'))}" required><button class="btn primary">${esc(t('go'))}</button></form>
       </details>
     </div>
+    <p><button class="link" data-act="guide">❓ ${esc(t('guide_title'))}</button></p>
     <h2 class="demo-h">${esc(t('or_demo'))}</h2>
     <p class="muted small center">${esc(t('demo_note'))}</p>
     <div class="demos">${Object.entries(groups).filter(([, a]) => a.length).map(([g, a]) => `<div class="demo-g"><h3>${g}</h3><div class="chips">${a.map(([id, n, lat, lon]) => `<button class="chip demo" data-act="demo" data-id="${id}" data-lat="${lat}" data-lon="${lon}" data-name="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>`).join('')}</div>
@@ -843,6 +859,15 @@ function renderAbout() {
   </article>`;
 }
 
+// ---------------- Feature guide ----------------
+const GUIDE_IC = ["🌍", "🧭", "🟤", "🚜", "🛰️", "🌧️", "📈", "🌿", "🗺️", "🎯", "🔄", "🔭", "🎡", "⏳", "✅", "💬", "🧪", "📲", "⚙️"];
+const GUIDE_TAB = ['farm', 'farm', 'farm', 'farm', 'climate', 'climate', 'climate', 'climate', 'climate', 'goals', 'plans', 'plans', 'plans', 'plans', 'plans', 'plans', 'lab', null, null];
+function guideHTML() {
+  return `<div class="sh-head"><h2>❓ ${esc(t('guide_title'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
+  <p class="muted">${esc(t('guide_sub'))}</p>
+  <div class="guide">${GUIDE_IC.map((ic, i) => `<button class="g-item" data-act="guideGo" data-i="${i}"><span class="g-ic">${ic}</span><span><b>${esc(t(`g${i + 1}_t`))}</b><small>${esc(t(`g${i + 1}_d`))}</small><em>📍 ${esc(t('where'))}: ${esc(t(`g${i + 1}_w`))}</em></span></button>`).join('')}</div>`;
+}
+
 // ---------------- Settings ----------------
 function settingsHTML() {
   const seg = (k, opts) => `<div class="seg">${opts.map(([v, l]) => `<button role="radio" aria-checked="${String(S[k]) === String(v)}" data-act="pref" data-k="${k}" data-v="${v}">${esc(l)}</button>`).join('')}</div>`;
@@ -853,13 +878,28 @@ function settingsHTML() {
     <label>${esc(t('text_size'))}</label>${seg('fs', [[0.9, 'A−'], [1, 'A'], [1.15, 'A+'], [1.3, 'A++']])}
   </div>
   <div class="row wrap gap">
-    ${deferredInstall ? `<button class="btn primary" data-act="install">⬇ ${esc(t('install'))}</button>` : ''}
+    ${canOfferInstall() ? `<button class="btn primary" data-act="install">⬇ ${esc(t('install'))}</button>` : `<span class="pill">${esc(t('installed'))}</span>`}
     <button class="btn" data-act="about">ℹ️ ${esc(t('about'))}</button>
     <button class="btn ghost" data-act="resetAll">↺ ${esc(t('reset'))}</button>
   </div>`;
 }
+// ---------------- Install as an app (Android, iPhone, desktop) ----------------
 let deferredInstall = null;
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; });
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstall = e; updateInstall(); });
+window.addEventListener('appinstalled', () => { deferredInstall = null; toast(t('installed')); updateInstall(); });
+function canOfferInstall() { return !isStandalone(); }
+function updateInstall() { const b = $('#installBtn'); if (b) b.hidden = !canOfferInstall(); }
+const SHARE_IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 11v9h14v-9"/></svg>';
+const ADD_IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>';
+async function install() {
+  if (deferredInstall) { deferredInstall.prompt(); const r = await deferredInstall.userChoice.catch(() => null); deferredInstall = null; updateInstall(); if (r?.outcome === 'accepted') toast(t('installed')); return; }
+  const how = isIOS() ? esc(t('install_ios', { share: '§S', add: '§A' })).replace('§S', SHARE_IC).replace('§A', ADD_IC) : esc(t('install_other'));
+  sheet(`<div class="sh-head"><h2>⬇ ${esc(t('install_title'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
+    <div class="install-card"><img src="icons/icon-192.png" width="72" height="72" alt=""><div><p>${esc(t('install_sub'))}</p><p class="big-step">${how}</p></div></div>
+    ${isIOS() ? `<div class="ios-steps"><div><span>1</span>${SHARE_IC}</div><div><span>2</span>${ADD_IC} ${esc(t('install_ios').split('“')[1]?.split('”')[0] || 'Add to Home Screen')}</div><div><span>3</span>✓</div></div>` : ''}`);
+}
 
 // ---------------- Map (lazy Leaflet + NASA GIBS) ----------------
 let L = null;
@@ -898,7 +938,7 @@ async function openMap() {
 }
 
 // ---------------- Speech, share, print ----------------
-const VOICE = { en: 'en-US', es: 'es-ES', fr: 'fr-FR', pt: 'pt-BR', sw: 'sw-KE', hi: 'hi-IN' };
+const VOICE = { en: 'en-US', es: 'es-ES', fr: 'fr-FR', pt: 'pt-BR', sw: 'sw-KE', hi: 'hi-IN', ar: 'ar-SA', zh: 'zh-CN', bn: 'bn-IN', ru: 'ru-RU', ur: 'ur-PK', id: 'id-ID', de: 'de-DE', ja: 'ja-JP', tr: 'tr-TR', vi: 'vi-VN', fa: 'fa-IR', it: 'it-IT', ha: 'ha-NG', yo: 'yo-NG', ig: 'ig-NG', am: 'am-ET', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN', pa: 'pa-IN' };
 function planSpeech(r, idx) {
   const parts = r.seq.map((id, i) => {
     const y = r.years[i];
@@ -923,6 +963,7 @@ function speak(text) {
   const code = VOICE[lang()] || 'en-US';
   const go2 = () => {
     const v = pickVoice(code);
+    if (!v && speechSynthesis.getVoices().length) toast('🔇 ' + code + ' voice not installed on this device — add it in your phone’s text-to-speech settings.', 5000);
     const female = v && FEMALE.test(v.name) && !MALE.test(v.name);
     const clean = text.replace(/[^\p{L}\p{N}\s.,:;%+\-–()$]/gu, ' ').replace(/\s+/g, ' ');
     const parts = clean.split(/(?<=[.;:])\s+/).filter((x) => x.trim());
@@ -1002,7 +1043,15 @@ const ACT = {
   settings: () => sheet(settingsHTML()),
   pref: async (a) => { const k = a.dataset.k; S[k] = k === 'fs' ? +a.dataset.v : a.dataset.v; save(); applyPrefs(); sheet(settingsHTML()); go(S.tab); },
   about: () => { closeSheet(); go('about'); },
-  install: async () => { if (deferredInstall) { deferredInstall.prompt(); deferredInstall = null; closeSheet(); } },
+  install: () => install(),
+  guide: () => sheet(guideHTML()),
+  guideGo: (a) => {
+    const i = +a.dataset.i, tab = GUIDE_TAB[i];
+    closeSheet();
+    if (i === 17) return install();
+    if (i === 18) return sheet(settingsHTML());
+    if (tab) go(tab);
+  },
   resetAll: () => { try { localStorage.removeItem('fs-state'); } catch { /* */ } location.reload(); },
 };
 

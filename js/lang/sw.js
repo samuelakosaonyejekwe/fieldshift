@@ -126,4 +126,12 @@ export default {
   now_wet: 'Ni mvua zaidi ya kawaida: unyevu mzuri wa kupanda; angalia maji kutuama na magonjwa ya ukungu, na linda udongo usio na kitu dhidi ya mmomonyoko.',
   now_ok: 'Karibu na kawaida: mipango iliyo hapa chini inapaswa kufanya kazi kama ilivyotarajiwa msimu huu.',
   now_hot: 'Joto kuliko kawaida: mazao yasiyostahimili joto yanaweza kuathirika wakati wa kutoa maua.',
+  install_title: "Sakinisha FieldShift kwenye kifaa hiki",
+  install_sub: "Inafanya kazi kama programu ya kawaida — inafunguka kutoka skrini ya mwanzo, bila mtandao na kwenye hali ya ndege.",
+  install_ios: "Kwenye iPhone / iPad: gusa kitufe cha Shiriki {share} kwenye Safari, kisha “Ongeza kwenye Skrini ya Mwanzo” {add}.",
+  install_other: "Kwenye menyu ya kivinjari chagua “Sakinisha programu” au “Ongeza kwenye skrini ya mwanzo”. Kwenye iPhone tumia Safari.",
+  installed: "Imesakinishwa ✓",
+  offline_ready: "Kifurushi cha nje ya mtandao kiko tayari: programu + mashamba {n} ya mfano yamehifadhiwa kwenye kifaa hiki.",
+  offline_now: "Nje ya mtandao — inatumia data iliyohifadhiwa kwenye kifaa hiki.",
+  not_now: "Si sasa",
 };
