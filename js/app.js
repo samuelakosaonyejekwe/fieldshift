@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.7.0';
+export const APP_VERSION = '1.8.0';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
@@ -675,7 +675,8 @@ function renderPlans() {
   const b = res.baseline;
   const sc = res.scenario || {};
   v.innerHTML = `
-  <div class="head"><h1>${esc(t('plans_title'))}</h1><p class="muted">${esc(t('plans_sub', { n: U.n(res.evaluated), y: res.climate.years.length, ms: res.ms }))}</p></div>
+  <div class="head row wrap gap" style="justify-content:space-between"><div><h1>${esc(t('plans_title'))}</h1><p class="muted">${esc(t('plans_sub', { n: U.n(res.evaluated), y: res.climate.years.length, ms: res.ms }))}</p></div>
+    <button class="btn" data-act="report">📄 ${esc(t('report'))}</button></div>
   <div class="lens card flat">
     <span class="lens-l">🔭 ${esc(t('lens'))}</span>
     <div class="chips">${SC.map((k) => `<button class="chip ${S.scen.mode === k ? 'on' : ''}" data-act="scen" data-k="${k}">${esc(t('sc_' + k))}</button>`).join('')}</div>
@@ -747,6 +748,7 @@ function planDetail(r, label) {
     <button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
   <div class="sh-actions row gap wrap noprint">
     <button class="btn sm" data-act="print">🖨️ ${esc(t('print'))}</button>
+    <button class="btn sm" data-act="reportOpen">📄 ${esc(t('report'))}</button>
     <button class="btn sm" data-act="speakOpen">🔊 ${esc(t('speak'))}</button>
     <button class="btn sm" data-act="shareOpen">↗ ${esc(t('share'))}</button>
     <button class="btn sm" data-act="waOpen">💬 ${esc(t('whatsapp'))}</button>
@@ -830,6 +832,114 @@ function downloadICS(r) {
   a.href = URL.createObjectURL(blob); a.download = 'fieldshift-plan.ics';
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+// ---------------- Report builder ----------------
+const REP_SECTIONS = ['farm', 'soil', 'climate', 'now', 'suit', 'compare', 'plan', 'actions', 'tm', 'methods'];
+let repOpt = { sec: Object.fromEntries(REP_SECTIONS.map((k) => [k, true])), plan: 0, n: 5 };
+function planList() {
+  const L = res.top.map((r, i) => [String(i), `#${i + 1} — ${planText(r)}`]);
+  if (res.baseline) L.push(['cur', `${t('your_current')} — ${planText(res.baseline)}`]);
+  if (custom) L.push(['custom', `${t('builder')} — ${planText(custom)}`]);
+  return L;
+}
+const planText = (r) => r.seq.map((id, i) => cropName(id) + (r.years[i].sec.id ? ` + ${cropName(r.years[i].sec.id)}` : '')).join(' → ');
+const pickPlan = (k) => (k === 'cur' ? res.baseline : k === 'custom' ? custom : res.top[+k]) || res.top[0] || res.baseline;
+function reportSheet(preset) {
+  if (preset != null) repOpt.plan = String(preset);
+  sheet(`<div class="sh-head"><h2>📄 ${esc(t('rep_title'))}</h2><button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
+  <p class="muted">${esc(t('rep_sub'))}</p>
+  <div class="card flat"><h3>${esc(t('rep_sections'))}</h3>
+    <div class="rep-secs">${REP_SECTIONS.map((k) => `<label class="tog"><input type="checkbox" data-rsec="${k}" ${repOpt.sec[k] ? 'checked' : ''}> ${esc(t('sec_' + k))}</label>`).join('')}</div>
+    <div class="form">
+      <label for="repPlan">${esc(t('rep_plan'))}</label><select id="repPlan">${planList().map(([k, l]) => `<option value="${k}" ${String(repOpt.plan) === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
+      <label for="repN">${esc(t('rep_n'))}</label><select id="repN">${[1, 2, 3, 4, 5, 6].map((n) => `<option ${repOpt.n === n ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    </div></div>
+  <div class="row wrap gap"><button class="btn primary" data-act="repPrint">🖨️ ${esc(t('rep_print'))}</button><button class="btn" data-act="repCSV">📊 ${esc(t('rep_csv'))}</button><button class="btn" data-act="repJSON">{ } ${esc(t('rep_json'))}</button></div>`);
+  const p = $('#sheet');
+  p.onchange = (e) => {
+    const el = e.target;
+    if (el.dataset.rsec) repOpt.sec[el.dataset.rsec] = el.checked;
+    if (el.id === 'repPlan') repOpt.plan = el.value;
+    if (el.id === 'repN') repOpt.n = +el.value;
+  };
+}
+function reportHTML() {
+  const O = repOpt.sec, r = pickPlan(String(repOpt.plan)), b = res.baseline, p = S.practice, sl = S.soil;
+  const C = ins.C, y0 = ins.years[0], y1 = ins.years[ins.years.length - 1];
+  const h = [];
+  h.push(`<header class="rep-h">${logo()}<div><h1>FieldShift — ${esc(S.farm.name || '')}</h1><p>${S.farm.lat.toFixed(4)}°, ${S.farm.lon.toFixed(4)}° · ${esc(zoneLabel())} · NASA POWER ${y0}–${y1} · ${esc(t('generated'))} ${new Date().toLocaleDateString(lang())}</p></div></header>`);
+  if (O.farm) h.push(`<section><h2>${esc(t('sec_farm'))}</h2><table class="tbl kv"><tbody>
+    <tr><th>${esc(t('irrigation'))}</th><td>${esc(t('irr_' + p.irrigation))}</td><th>${esc(t('tillage'))}</th><td>${esc(t('till_' + p.tillage))}</td></tr>
+    <tr><th>${esc(t('residue'))}</th><td>${esc(t('res_' + p.residue))}</td><th>${esc(t('drainage'))}</th><td>${esc(t('dr_' + p.drainage))}</td></tr>
+    <tr><th>${esc(t('slope'))}</th><td>${p.slope}%</td><th>${esc(t('manure'))}</th><td>${p.manure} ${esc(t('t_ha_yr'))}</td></tr>
+    <tr><th>${esc(t('current_rot'))}</th><td colspan="3">${esc(b ? planText(b) : p.current.map(cropName).join(' → '))}</td></tr></tbody></table></section>`);
+  if (O.soil) h.push(`<section><h2>${esc(t('sec_soil'))}</h2><table class="tbl kv"><tbody>
+    <tr><th>${esc(t('texture'))}</th><td>${esc(textureClass(sl.sand, sl.silt, sl.clay).replace(/_/g, ' '))}</td><th>${esc(t('sand'))} / ${esc(t('silt'))} / ${esc(t('clay'))}</th><td>${sl.sand} / ${sl.silt} / ${sl.clay} %</td></tr>
+    <tr><th>${esc(t('soc'))}</th><td>${sl.soc} g/kg</td><th>${esc(t('ph'))}</th><td>${sl.ph}</td></tr>
+    <tr><th>${esc(t('bd'))}</th><td>${sl.bd} g/cm³</td><th>${esc(t('cec'))}</th><td>${sl.cec ?? '–'} cmol/kg</td></tr></tbody></table>
+    <p class="muted small">${esc(S.soilEdited ? '✎' : t('soil_src'))}</p></section>`);
+  if (O.climate) h.push(`<section><h2>${esc(t('sec_climate'))}</h2>
+    <div class="kpis">${[[t('k_temp'), `${U.n(U.temp(ins.Tann), 1)}${U.tempL}`], [t('k_rain'), `${U.n(U.mm(ins.Pann))} ${U.mmL}`], [t('k_arid'), U.n(ins.aridity, 2)], [t('k_warm'), `${ins.tTrend >= 0 ? '+' : ''}${U.n(U.dTemp(ins.tTrend), 2)}${U.tempL} / 10 yr`], [t('k_rainTrend'), `${ins.pTrend >= 0 ? '+' : ''}${U.n(ins.pTrend, 1)}% / 10 yr`], [t('k_dry'), `${Math.round(ins.dryFreq * 100)}%`]].map(([l, v]) => `<div class="kpi"><span>${esc(l)}</span><b>${v}</b></div>`).join('')}</div>
+    <div class="grid2">${CH.rainChart(C.norm, U)}${CH.tempChart(C.norm, C.frost, U)}</div></section>`);
+  if (O.now && recent) h.push(`<section>${nowHTML()}</section>`);
+  if (O.suit) h.push(`<section><h2>${esc(t('sec_suit'))}</h2><table class="tbl"><thead><tr><th>${esc(t('crop'))}</th><th>${esc(t('score'))}</th><th>${esc(t('sow'))}–${esc(t('harvest'))}</th><th>${esc(t('exp_yield'))}</th><th>${esc(t('m_fail'))}</th><th>${esc(t('limit_by'))}</th></tr></thead><tbody>
+    ${res.suit.filter((x) => !CROP[x.id].cover).slice(0, 18).map((x) => `<tr><td>${CROP[x.id].ic} ${esc(cropName(x.id))}</td><td>${Math.round(x.S * 100)}</td><td>${x.plant != null ? `${monthName(x.plant)}–${monthName(x.harv)}` : '–'}</td><td>${x.yield ? `${U.n(U.tha(x.yield), 1)} ${U.thaL}` : '–'}</td><td>${Math.round((x.pFail || 0) * 100)}%</td><td>${x.limit ? esc(t('lim_' + x.limit)) : '—'}</td></tr>`).join('')}</tbody></table></section>`);
+  if (O.compare) {
+    const rows = [...res.top.slice(0, repOpt.n).map((x, i) => [`#${i + 1}`, x]), ...(b ? [[t('your_current'), b]] : [])];
+    h.push(`<section><h2>${esc(t('sec_compare'))}</h2><div class="tbl-w"><table class="tbl cmp"><thead><tr><th></th><th>${esc(t('plans_title'))}</th><th>${esc(t('score'))}</th>${SC_KEYS.map((k) => `<th>${esc(t('s_' + k))}</th>`).join('')}<th>${esc(t('m_soc'))}</th><th>${esc(t('m_ero'))}</th><th>${esc(t('m_fert'))}</th><th>${esc(t('m_irr'))}</th><th>${esc(t('m_gm'))}</th><th>${esc(t('m_fail'))}</th></tr></thead><tbody>
+    ${rows.map(([lab, x]) => `<tr><td><b>${esc(lab)}</b></td><td>${esc(planText(x))}</td><td><b>${Math.round(x.total)}</b></td>${SC_KEYS.map((k) => `<td>${Math.round(x.scores[k])}</td>`).join('')}<td>${x.socPct.toFixed(1)}%</td><td>${U.n(U.tha(x.erosion), 1)}</td><td>${U.n(U.kg(x.fert))}</td><td>${U.n(U.mm(x.irr))}</td><td>${U.n(U.money(x.gm))}</td><td>${Math.round(x.pFail * 100)}%</td></tr>`).join('')}</tbody></table></div>
+    <p class="muted small">${esc(t('m_ero'))}: ${U.thaL}/yr · ${esc(t('m_fert'))}: ${U.kgL} · ${esc(t('m_irr'))}: ${U.mmL}/yr · ${esc(t('m_gm'))}: ${U.moneyL}</p></section>`);
+  }
+  if (r && O.plan) {
+    h.push(`<section><h2>${esc(t('sec_plan'))}: ${esc(planText(r))}</h2>
+      <div class="grid2"><div class="center">${CH.wheel(r, 220, true)}</div><ul class="reasons big">${(r.reasons || []).map((x) => `<li>${x.ic} ${esc(reasonText(x))}</li>`).join('')}</ul></div>
+      ${CH.calendar(r)}${metricsRow(r, r === b ? null : b)}
+      ${CH.linesChart([{ name: planText(r).slice(0, 40), color: 'var(--s1)', vals: r.socTraj.map(U.tha) }, ...(b && r !== b ? [{ name: t('your_current'), color: 'var(--s2)', vals: b.socTraj.map(U.tha), dash: true }] : [])], t('yr'), `t C/${U.imp ? 'ac' : 'ha'}`)}</section>`);
+  }
+  if (r && O.actions) h.push(`<section><h2>${esc(t('act_title'))}</h2>${actionsHTML(r)}</section>`);
+  if (r && O.tm && r.hist.length) h.push(`<section><h2>${esc(t('tm_title', { y0: r.hist[0].y, y1: r.hist[r.hist.length - 1].y }))}</h2>${CH.timeMachine(r.hist, r === b ? null : b?.hist, U)}<p class="muted small">${esc(t('tm_fails', { n: r.hist.filter((x) => x.fail).length }))}</p></section>`);
+  if (O.methods) h.push(`<section><h2>${esc(t('sec_methods'))}</h2><p class="small">NASA POWER (monthly ${y0}–${y1}, climatology, near-real-time daily) · NASA GIBS · MODIS MOD13Q1 NDVI (ORNL DAAC) · ISRIC SoilGrids 2.0 · FAO Ecocrop / FAO-56. ${esc(t('about_body'))}</p><p class="small"><b>${esc(t('disclaimer'))}</b></p><p class="small muted">https://samuelakosaonyejekwe.github.io/fieldshift/</p></section>`);
+  return h.join('');
+}
+function printReport() {
+  let el = $('#report');
+  if (!el) { el = document.createElement('div'); el.id = 'report'; document.body.append(el); }
+  CH.setWidth(680);
+  el.innerHTML = reportHTML();
+  document.body.classList.add('print-report');
+  const done = () => { document.body.classList.remove('print-report'); el.innerHTML = ''; sizeCharts(); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(() => { window.print(); setTimeout(() => { if (!matchMedia('print').matches) done(); }, 1500); }, 80);
+}
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const slug = () => (S.farm?.name || 'farm').toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'farm';
+function reportCSV() {
+  const q = (v) => { const x = String(v ?? ''); return /[",\n;]/.test(x) ? `"${x.replace(/"/g, '""')}"` : x; };
+  const L = [];
+  L.push(['FieldShift', S.farm.name || '', S.farm.lat, S.farm.lon, new Date().toISOString().slice(0, 10)].map(q).join(','));
+  L.push('');
+  L.push(['rank', 'rotation', 'score', 'soil', 'water', 'income', 'resilience', 'simplicity', 'soc_change_20y_pct', 'erosion_t_ha_yr', 'n_fert_kg_ha_yr', 'irrigation_mm_yr', 'margin_usd_ha_yr', 'bad_year_margin_usd_ha', 'failure_risk_pct', 'co2e_t_ha_yr'].join(','));
+  const rows = [...res.top.slice(0, repOpt.n).map((x, i) => [`#${i + 1}`, x]), ...(res.baseline ? [['current', res.baseline]] : []), ...(custom ? [['builder', custom]] : [])];
+  for (const [lab, x] of rows) L.push([lab, planText(x), x.total.toFixed(1), ...SC_KEYS.map((k) => x.scores[k].toFixed(0)), x.socPct.toFixed(2), x.erosion.toFixed(2), x.fert.toFixed(0), x.irr.toFixed(0), x.gm.toFixed(0), x.p10.toFixed(0), (x.pFail * 100).toFixed(1), x.co2e.toFixed(3)].map(q).join(','));
+  L.push('');
+  L.push(['month', 'rain_mm', 'et0_mm', 'tmean_c', 'tmax_extreme_c', 'tmin_extreme_c', 'root_zone_soil_wetness', 'frost_days'].join(','));
+  ins.C.norm.P.forEach((_, m) => L.push([m + 1, ins.C.norm.P[m].toFixed(1), ins.C.norm.ET0[m].toFixed(1), ins.C.norm.T[m].toFixed(1), ins.C.norm.Tx[m].toFixed(1), ins.C.norm.Tn[m].toFixed(1), ins.C.norm.GW[m].toFixed(2), (ins.C.frost[m] || 0).toFixed(1)].join(',')));
+  L.push('');
+  L.push(['crop', 'suitability', 'sow_month', 'harvest_month', 'expected_yield_t_ha', 'failure_risk_pct', 'limited_by'].join(','));
+  for (const x of res.suit) L.push([cropName(x.id), (x.S * 100).toFixed(0), x.plant != null ? ((x.plant + 12) % 12) + 1 : '', x.harv != null ? ((x.harv + 12) % 12) + 1 : '', x.yield ? x.yield.toFixed(2) : '', ((x.pFail || 0) * 100).toFixed(0), x.limit || ''].map(q).join(','));
+  download(`fieldshift-${slug()}.csv`, '\ufeff' + L.join('\r\n'), 'text/csv;charset=utf-8');
+}
+function reportJSON() {
+  const slim = (x) => x && { rotation: x.seq, secondary: x.years.map((y) => y.sec.id || y.sec.type), score: +x.total.toFixed(1), scores: x.scores, socChangePct: x.socPct, erosion: x.erosion, nFert: x.fert, irrigation: x.irr, margin: x.gm, badYearMargin: x.p10, failureRisk: x.pFail, co2e: x.co2e, years: x.years, timeMachine: x.hist };
+  const out = { app: 'FieldShift', version: APP_VERSION, generated: new Date().toISOString(), farm: S.farm, soil: S.soil, practice: S.practice, priorities: S.prio, options: S.cons, scenario: res.scenario,
+    climate: { years: [ins.years[0], ins.years[ins.years.length - 1]], normals: ins.C.norm, trends: { tempPerDecade: ins.tTrend, rainPctPerDecade: ins.pTrend, droughtYearFreq: ins.dryFreq } },
+    plans: res.top.slice(0, repOpt.n).map(slim), current: slim(res.baseline), builder: slim(custom), suitability: res.suit.map(({ hist, ...x }) => x) };
+  download(`fieldshift-${slug()}.json`, JSON.stringify(out, null, 1), 'application/json');
 }
 
 // ---------------- CROP LAB ----------------
@@ -1089,6 +1199,11 @@ const ACT = {
   openCustom: () => { openPlan = custom; sheet(planDetail(custom, t('builder'))); openPlan._i = -2; },
   closeSheet: () => closeSheet(),
   ics: () => openPlan && downloadICS(openPlan),
+  report: () => reportSheet(),
+  reportOpen: () => { const i = openPlan?._i; reportSheet(i >= 0 ? i : i === -1 ? 'cur' : i === -2 ? 'custom' : 0); },
+  repPrint: () => { closeSheet(); printReport(); },
+  repCSV: () => reportCSV(),
+  repJSON: () => reportJSON(),
   speak: (a) => { const i = +a.dataset.i; speak(planSpeech(res.top[i], i)); },
   speakOpen: () => openPlan && speak(planSpeech(openPlan, openPlan._i)),
   share: (a) => { const i = +a.dataset.i; share(res.top[i], i); },
