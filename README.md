@@ -18,6 +18,9 @@ Pick a field (search, GPS, map or demo farm) → FieldShift pulls 30 years of NA
 - **Practical action plan** — month-by-month tasks (sow, inoculate, fertilise, irrigate, cover crop, harvest) exportable to any phone calendar.
 - **Runs everywhere, for everyone** — no server, no sign-up, no framework; ~60 KB gzipped; installable on Android, iPhone/iPad and desktop; works offline and in airplane mode (23 demo farms pre-cached); NASA data refreshes automatically when online.
 - **38 languages** — English, 中文, हिन्दी, Español, Français, العربية, বাংলা, Português, Русский, اردو, Bahasa Indonesia, Deutsch, 日本語, Kiswahili, मराठी, తెలుగు, Türkçe, தமிழ், Tiếng Việt, فارسی, Hausa, ਪੰਜਾਬੀ, Italiano, Yorùbá, Igbo, አማርኛ, Ελληνικά, 한국어, ไทย, Українська, Polski, Nederlands, Filipino, Bahasa Melayu, नेपाली, Soomaali, isiZulu, Afaan Oromoo — with right-to-left layouts and a warm baritone read-aloud voice.
+- **Report builder** — choose sections (farm, soil, NASA climate, season so far, crop suitability, plan comparison, plan detail, action plan, Time Machine, methods), the plan to feature and how many plans to compare; export as print/PDF, CSV spreadsheet or JSON.
+- **Secure & private** — no accounts, no tracking, no backend; strict Content Security Policy, integrity-checked map library, sanitised share links, anti-clickjacking, HTTPS/HSTS. See [SECURITY.md](SECURITY.md).
+- **Self-healing updates** — version-stamped files, automatic updates, on-screen diagnostics, and a clean-start link (`?reset`).
 - **In-app guide** (❓ in the top bar) lists every feature and where to find it.
 
 ## NASA & open data used
@@ -37,6 +40,11 @@ Pick a field (search, GPS, map or demo farm) → FieldShift pulls 30 years of NA
 5. Each rotation is simulated for 20 years (two-pool equilibrium-calibrated SOC, RUSLE, N budget, water, economics, GHG) and scored.
 
 All computation runs on the user's device in a Web Worker. Data is fetched directly from NASA and ISRIC by the user's browser and cached for offline use.
+
+## Release
+```
+python3 tools_release.py <version>   # stamps all module URLs + service-worker cache, then commit & push
+```
 
 ## Run locally
 Any static server works:
