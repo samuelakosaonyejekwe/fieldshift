@@ -1,7 +1,7 @@
 // Tiny dependency-free SVG chart kit. Every chart returns an SVG/HTML string;
 // tooltips are driven by data-tip attributes (see bindTips).
-import { famColor, CROP } from './crops.js?v=1.10.0';
-import { cropName, monthName, t } from './i18n.js?v=1.10.0';
+import { famColor, CROP } from './crops.js?v=1.11.0';
+import { cropName, cropLabel, monthName, t } from './i18n.js?v=1.11.0';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // charts are drawn at the on-screen pixel width so text stays legible on phones
@@ -153,7 +153,7 @@ export function timeMachine(plan, cur, U) {
   for (const [x, y] of xl) s += `<text x="${x}" y="${H - 16}" class="ax" text-anchor="middle">${y}</text>`;
   plan.forEach((h, i) => {
     const c2 = cc ? U.money(cc[i]) : null;
-    s += `<rect x="${P.l + i * cw}" y="${P.t}" width="${cw}" height="${H - P.t - 20}" fill="transparent" data-tip="${esc(`<b>${h.y}</b> — ${cropName(h.id)}<br>${t('score')}: ${Math.round(h.S * 100)}${h.fail ? ' ✖' : ''} ${h.dry ? '☀' : ''}${h.heat ? '🔥' : ''}${h.frost ? '❄' : ''}<br>${t('m_gm')}: ${U.moneyFmt(h.income)}<br>${t('tm_cum')}: ${U.moneyFmt(cp[i])}${c2 != null ? `<br>${t('tm_cur')}: ${U.moneyFmt(cc[i])}` : ''}`)}"/>`;
+    s += `<rect x="${P.l + i * cw}" y="${P.t}" width="${cw}" height="${H - P.t - 20}" fill="transparent" data-tip="${esc(`<b>${h.y}</b> — ${(h.ids || [h.id]).map((id, k) => cropLabel(id, h.vs?.[k])).join(' + ')}<br>${t('score')}: ${Math.round(h.S * 100)}${h.fail ? ' ✖' : ''} ${h.dry ? '☀' : ''}${h.heat ? '🔥' : ''}${h.frost ? '❄' : ''}<br>${t('m_gm')}: ${U.moneyFmt(h.income)}<br>${t('tm_cum')}: ${U.moneyFmt(cp[i])}${c2 != null ? `<br>${t('tm_cur')}: ${U.moneyFmt(cc[i])}` : ''}`)}"/>`;
   });
   return s + '</svg>' + legend([[t('tm_plan'), 'var(--s1)', 'line'], ...(cc ? [[t('tm_cur'), 'var(--s2)', 'dash']] : [])]);
 }

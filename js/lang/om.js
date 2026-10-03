@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Kun irra deddeebi'ee yoo uumame, biraawuzara keessan haaromsaa ykn kan biraa yaalaa.",
   resetting: "FieldShift haaromsamaa jira…",
   update_browser: "FieldShift fayyadamuuf maaloo biraawuzara keessan haaromsaa.",
+  var_winter: "bonaa",
+  var_spring: "arfaasaa",
+  var_standard: "idilee",
+  var_andean: "kan Andes dhaamocha danda'u",
+  lim_ripe: "yeroo bilchina qabbanaa'aa",
 };

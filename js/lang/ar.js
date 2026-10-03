@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "إذا تكرر ذلك، فحدّث متصفحك أو جرّب متصفحًا آخر.",
   resetting: "جارٍ إعادة تعيين FieldShift…",
   update_browser: "يرجى تحديث متصفحك لاستخدام FieldShift.",
+  var_winter: "شتوي",
+  var_spring: "ربيعي",
+  var_standard: "قياسي",
+  var_andean: "أنديزي مقاوم للصقيع",
+  lim_ripe: "موسم نضج بارد",
 };

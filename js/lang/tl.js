@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Kung paulit-ulit itong mangyari, i-update ang inyong browser o sumubok ng iba.",
   resetting: "Nire-reset ang FieldShift…",
   update_browser: "Paki-update ang inyong browser para magamit ang FieldShift.",
+  var_winter: "taglamig",
+  var_spring: "tagsibol",
+  var_standard: "karaniwan",
+  var_andean: "Andean na matibay sa hamog na yelo",
+  lim_ripe: "malamig na panahon ng paghinog",
 };

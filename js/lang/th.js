@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "หากเกิดขึ้นซ้ำ ให้อัปเดตเบราว์เซอร์หรือลองใช้เบราว์เซอร์อื่น",
   resetting: "กำลังรีเซ็ต FieldShift…",
   update_browser: "โปรดอัปเดตเบราว์เซอร์เพื่อใช้ FieldShift",
+  var_winter: "ฤดูหนาว",
+  var_spring: "ฤดูใบไม้ผลิ",
+  var_standard: "พันธุ์มาตรฐาน",
+  var_andean: "พันธุ์แอนดีสทนน้ำค้างแข็ง",
+  lim_ripe: "ฤดูสุกแก่ที่เย็น",
 };

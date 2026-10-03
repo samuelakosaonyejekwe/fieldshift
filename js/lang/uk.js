@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Якщо це повторюється, оновіть браузер або спробуйте інший.",
   resetting: "Скидання FieldShift…",
   update_browser: "Оновіть браузер, щоб користуватися FieldShift.",
+  var_winter: "озима",
+  var_spring: "яра",
+  var_standard: "стандартна",
+  var_andean: "андська морозостійка",
+  lim_ripe: "прохолодний період дозрівання",
 };

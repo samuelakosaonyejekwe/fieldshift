@@ -1,9 +1,9 @@
 // FieldShift service worker: app shell offline, NASA/soil data network-first with cache fallback.
-const APP_V = '1.10.0';
+const APP_V = '1.11.0';
 const VER = 'fieldshift-' + APP_V;
 // versioned files (?v=APP_V) never change: they are cached exactly and never swapped for another version
 const V = (u) => `${u}?v=${APP_V}`;
-const PLAIN = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable.png'];
+const PLAIN = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable.png', 'icons/apple-touch-icon.png'];
 const VERSIONED = ['css/app.css', 'js/app.js', 'js/boot.js', 'js/data.js', 'js/engine.js', 'js/crops.js', 'js/charts.js', 'js/i18n.js', 'js/worker.js'].map(V);
 const LANG_FILES = ['es', 'fr', 'pt', 'sw', 'hi', 'ar', 'zh', 'bn', 'ru', 'ur', 'id', 'de', 'ja', 'tr', 'vi', 'fa', 'it', 'ha', 'yo', 'ig', 'am', 'ta', 'te', 'mr', 'pa', 'el', 'ko', 'th', 'uk', 'pl', 'nl', 'tl', 'ms', 'ne', 'so', 'zu', 'om'].map((l) => V(`js/lang/${l}.js`));
 // offline pack: every demo farm (fetched in the background after install)

@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "Hili likiendelea kutokea, sasisha kivinjari chako au jaribu kingine.",
   resetting: "Inaanzisha upya FieldShift…",
   update_browser: "Tafadhali sasisha kivinjari chako ili kutumia FieldShift.",
+  var_winter: "ya majira ya baridi",
+  var_spring: "ya masika",
+  var_standard: "ya kawaida",
+  var_andean: "ya Andes inayostahimili barafu",
+  lim_ripe: "msimu wa kukomaa wenye baridi",
 };

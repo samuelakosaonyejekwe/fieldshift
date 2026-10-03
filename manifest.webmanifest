@@ -55,5 +55,25 @@
         }
       ]
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "icons/screenshot-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Recommended crop rotations for a farm in Kano, Nigeria"
+    },
+    {
+      "src": "icons/screenshot-narrow.png",
+      "sizes": "800x1600",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "FieldShift on a phone"
+    }
+  ],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }

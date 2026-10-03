@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "Jika ini terus terjadi, perbarui browser Anda atau coba browser lain.",
   resetting: "Mengatur ulang FieldShift…",
   update_browser: "Silakan perbarui browser Anda untuk menggunakan FieldShift.",
+  var_winter: "musim dingin",
+  var_spring: "musim semi",
+  var_standard: "standar",
+  var_andean: "Andes tahan embun beku",
+  lim_ripe: "musim pematangan sejuk",
 };

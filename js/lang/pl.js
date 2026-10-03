@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Jeśli to się powtarza, zaktualizuj przeglądarkę lub wypróbuj inną.",
   resetting: "Resetowanie FieldShift…",
   update_browser: "Zaktualizuj przeglądarkę, aby korzystać z FieldShift.",
+  var_winter: "ozima",
+  var_spring: "jara",
+  var_standard: "standardowa",
+  var_andean: "andyjska, odporna na mróz",
+  lim_ripe: "chłodny okres dojrzewania",
 };

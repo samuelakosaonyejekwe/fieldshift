@@ -334,8 +334,16 @@ select { border: 1px solid var(--line); border-radius: 10px; background: var(--s
 .now-k > div { background: var(--surface2); border-radius: 10px; padding: .45rem .6rem; display: flex; flex-direction: column; }
 .now-k span { font-size: .74rem; color: var(--muted); } .now-k b { font-size: 1.2rem; } .now-k small { font-size: .74rem; color: var(--ink2); }
 .now p { margin: .2rem 0 0; font-size: .92rem; }
-.install-btn { min-height: 36px; padding: .25rem .7rem; }
-@media (max-width: 480px) { .install-btn span { display: none; } }
+.install-btn { display: inline-flex; align-items: center; gap: .45rem; min-height: 38px; padding: .2rem .85rem .2rem .25rem; border: 0; border-radius: 999px;
+  background: linear-gradient(135deg, #ffe08a 0%, #f6b73c 55%, #ef9a1a 100%); color: #3a2a00; font-weight: 750; font-size: .9rem; letter-spacing: .01em;
+  box-shadow: 0 2px 10px rgba(239, 154, 26, .45), inset 0 1px 0 rgba(255, 255, 255, .6); position: relative; overflow: hidden; transition: transform .15s, box-shadow .15s; }
+.install-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(239, 154, 26, .55), inset 0 1px 0 rgba(255, 255, 255, .6); }
+.install-btn:active { transform: translateY(0); }
+.install-btn .ib-ic { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #1f6f4a; color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.install-btn::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.55) 45%, transparent 60%); transform: translateX(-120%); animation: ib-shine 4.5s ease-in-out 1.5s 3; }
+@keyframes ib-shine { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@media (prefers-reduced-motion: reduce) { .install-btn::after { animation: none; } }
+@media (max-width: 480px) { .install-btn { padding: .2rem; } .install-btn .ib-t { display: none; } }
 .install-card { display: flex; gap: 1rem; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 1rem; }
 .install-card img { border-radius: 18px; flex: none; }
 .big-step { font-size: 1.05rem; font-weight: 600; }

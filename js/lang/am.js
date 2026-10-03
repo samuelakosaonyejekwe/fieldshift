@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "ይህ መደጋገሙን ከቀጠለ አሳሽዎን ያዘምኑ ወይም ሌላ ይሞክሩ።",
   resetting: "FieldShift እንደገና እየተጀመረ ነው…",
   update_browser: "FieldShiftን ለመጠቀም እባክዎ አሳሽዎን ያዘምኑ።",
+  var_winter: "የክረምት",
+  var_spring: "የበልግ",
+  var_standard: "መደበኛ",
+  var_andean: "የአንዲስ ውርጭ ተቋቋሚ",
+  lim_ripe: "ቀዝቃዛ የመብሰያ ወቅት",
 };

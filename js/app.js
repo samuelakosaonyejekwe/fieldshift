@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.10.0';
-import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.10.0';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.10.0';
-import * as CH from './charts.js?v=1.10.0';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.11.0';
+import { t, setLang, lang, LANGS, RTL, cropName, cropLabel, monthName, guessLang } from './i18n.js?v=1.11.0';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.11.0';
+import * as CH from './charts.js?v=1.11.0';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.10.0';
+export const APP_VERSION = '1.11.0';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let shiftTok = 0;
@@ -139,7 +139,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js?v=1.10.0', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.11.0', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -156,7 +156,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js?v=1.10.0');
+  engineMod = engineMod || await import('./engine.js?v=1.11.0');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
@@ -182,7 +182,7 @@ async function boot() {
   const h0 = location.hash.slice(1);
   if (TABS.some(([k]) => k === h0)) S.tab = h0;
   if (S.farm) openFarm(S.farm, true);
-  else go(S.tab === 'about' ? 'about' : 'farm');
+  else go(S.tab === 'about' ? 'about' : 'farm', 'boot');
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // when a new version takes over, reload once so every user always runs the latest code
     const hadController = !!navigator.serviceWorker.controller;
@@ -228,7 +228,7 @@ function renderShell() {
     <div class="top-r">
       <label class="sel-lang">${ico('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/>', 18)}
         <select id="langSel" aria-label="${esc(t('language'))}">${LANGS.map(([k, n]) => `<option value="${k}" ${k === S.lang ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
- <button class="btn sm primary install-btn" id="installBtn" data-act="install" hidden>⬇ <span>${esc(t('install'))}</span></button>
+ <button class="install-btn" id="installBtn" data-act="install" hidden aria-label="${esc(t('install'))}" title="${esc(t('install'))}"><span class="ib-ic"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7v7M9 11.5l3 3 3-3M10 18.5h4"/></svg></span><span class="ib-t">${esc(t('install'))}</span></button>
       <button class="icon-btn" data-act="guide" aria-label="${esc(t('guide'))}" title="${esc(t('guide'))}">${ico('<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 1.5-2.5 2-2.5 3.5M12 17h.01"/>', 20)}</button>
       <button class="icon-btn" data-act="settings" aria-label="${esc(t('settings'))}">${ico('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>', 20)}</button>
     </div>
@@ -263,7 +263,7 @@ function go(tab, fromHistory = false) {
   $$('.view').forEach((v) => (v.hidden = v.id !== 'v-' + tab));
   $$('#tabs a').forEach((b) => b.setAttribute('aria-current', b.dataset.go === tab ? 'page' : 'false'));
   // keep the address bar in step: back/forward move between tabs, and the link itself works without JS click handling
-  if (location.hash !== '#' + tab) { try { history[fromHistory ? 'replaceState' : 'pushState'](null, '', '#' + tab); } catch { /* */ } }
+  if (location.hash !== '#' + tab && !(fromHistory === 'boot' && !location.hash)) { try { history[fromHistory ? 'replaceState' : 'pushState'](null, '', '#' + tab); } catch { /* */ } }
   window.scrollTo({ top: 0 });
   try {
     sizeCharts();
@@ -387,7 +387,7 @@ async function openFarm(f, quiet = false) {
   if (!sameFarm && !S.practice.current.length && res?.baseline) { S.practice.current = [...res.baseline.seq]; save(); }
   busy(null);
   if (raw.fromCache && !quiet && !navigator.onLine) toast(t('from_cache'));
-  go(quiet ? (S.tab === 'farm' ? 'plans' : S.tab) : 'plans');
+  go(quiet ? (S.tab === 'farm' ? 'plans' : S.tab) : 'plans', quiet ? 'boot' : false);
   // demo farms ship with a snapshot; when online, pull the newest NASA record and update quietly
   if (f.demo && navigator.onLine) {
     const lat = f.lat, lon = f.lon, soil = raw.soil;
@@ -742,7 +742,7 @@ function planTitle(r) {
   return r.seq.map((id, i) => {
     const y = r.years[i];
     const sec = y.sec.type === 'cover' || y.sec.type === 'double' ? `<small class="sec ${y.sec.type}">+ ${CROP[y.sec.id].ic} ${esc(cropName(y.sec.id))}</small>` : '';
-    return `<span class="seqc" style="--c:${famColor(id)}">${CROP[id].ic} ${esc(cropName(id))}${sec}</span>`;
+    return `<span class="seqc" style="--c:${famColor(id)}">${CROP[id].ic} ${esc(cropLabel(id, y.v))}${sec}</span>`;
   }).join('<span class="arr">→</span>');
 }
 function delta(v, b, fmt, goodUp = true, unit = '') {
@@ -873,7 +873,7 @@ function planDetail(r, label) {
   const rows = SC_KEYS.map((k) => ({ label: t('p_' + k), vals: [r.scores[k], ...(b && !isBase ? [b.scores[k]] : []), ...(res.top[0] && r !== res.top[0] && !isBase ? [res.top[0].scores[k]] : [])] }));
   const socSeries = [{ name: label, color: 'var(--s1)', vals: r.socTraj.map(U.tha) }];
   if (b && !isBase) socSeries.push({ name: t('your_current'), color: 'var(--s2)', vals: b.socTraj.map(U.tha), dash: true });
-  const fails = r.hist.filter((h) => h.fail).length;
+  const fails = r.hist.reduce((a, h) => a + (h.fails ?? (h.fail ? 1 : 0)), 0);
   return `
   <div class="sh-head"><div><span class="eyebrow">${esc(label)} · ${r.N} ${esc(t('years'))} · ${esc(t('score'))} ${Math.round(r.total)}</span><div class="seq">${planTitle(r)}</div></div>
     <button class="icon-btn x" data-act="closeSheet" aria-label="${esc(t('close'))}">✕</button></div>
@@ -903,7 +903,7 @@ function planDetail(r, label) {
     ${r.hist.length ? CH.timeMachine(r.hist, isBase ? null : b?.hist, U) : ''}</section>
   <section class="card flat"><h3>${esc(t('year_table'))}</h3>
     <div class="tbl-w"><table class="tbl"><thead><tr><th>${esc(t('yr'))}</th><th>${esc(t('crop'))}</th><th>${esc(t('sow'))}</th><th>${esc(t('harvest'))}</th><th>${esc(t('exp_yield'))}</th><th>${esc(t('m_fert'))}</th><th>${esc(t('m_irr'))}</th><th>${esc(t('m_fail'))}</th><th>${esc(t('then'))}</th></tr></thead>
-    <tbody>${r.years.map((y, i) => `<tr><td>${i + 1}</td><td>${CROP[y.id].ic} ${esc(cropName(y.id))}</td><td>${monthName(y.plant)}</td><td>${monthName(y.harv)}</td><td>${U.n(U.tha(y.yield), 1)} ${U.thaL}</td><td>${U.n(U.kg(y.fert))}</td><td>${U.n(U.mm(y.irr))}</td><td>${Math.round(y.pFail * 100)}%</td><td>${y.sec.id ? `${CROP[y.sec.id].ic} ${esc(cropName(y.sec.id))} <small>(${esc(t(y.sec.type))}, ${monthName(y.sec.start)}–${monthName(y.sec.end)})</small>` : esc(t(y.sec.type === 'none' ? 'none' : 'fallow'))}</td></tr>`).join('')}</tbody></table></div>
+    <tbody>${r.years.map((y, i) => `<tr><td>${i + 1}</td><td>${CROP[y.id].ic} ${esc(cropLabel(y.id, y.v))}</td><td>${monthName(y.plant)}</td><td>${monthName(y.harv)}</td><td>${U.n(U.tha(y.yield), 1)} ${U.thaL}</td><td>${U.n(U.kg(y.fert))}</td><td>${U.n(U.mm(y.irr))}</td><td>${Math.round(y.pFail * 100)}%</td><td>${y.sec.id ? `${CROP[y.sec.id].ic} ${esc(cropName(y.sec.id))} <small>(${esc(t(y.sec.type))}, ${monthName(y.sec.start)}–${monthName(y.sec.end)})</small>` : esc(t(y.sec.type === 'none' ? 'none' : 'fallow'))}</td></tr>`).join('')}</tbody></table></div>
   </section>
   <p class="muted small">${esc(t('disclaimer'))}</p>`;
 }
@@ -914,7 +914,7 @@ function actions(r) {
   const ev = [];
   r.years.forEach((y, i) => {
     const c = CROP[y.id], o = i * 12;
-    ev.push({ m: o + y.plant, k: 'act_sow', p: { crop: y.id }, ic: '🌱' });
+    ev.push({ m: o + y.plant, k: 'act_sow', p: { crop: y.id, v: y.v }, ic: '🌱' });
     if (c.nfix) ev.push({ m: o + y.plant, k: 'act_inoc', p: { crop: y.id }, ic: '🧫' });
     if (y.fert > 10) ev.push({ m: o + y.plant, k: 'act_fert', p: { crop: y.id, n: QF.kgha(y.fert) }, ic: '🧪' });
     if (y.irr > 20) ev.push({ m: o + y.plant + 1, k: 'act_irr', p: { crop: y.id, mm: QF.mm(y.irr) }, ic: '💧' });
@@ -933,7 +933,7 @@ function actions(r) {
   const now = new Date(), cm = now.getFullYear() * 12 + now.getMonth();
   const first = ev[0]?.m ?? 0;
   const start = cm + ((((first - now.getMonth()) % 12) + 12) % 12) - first;
-  return ev.map((e) => { const abs = start + e.m; return { ...e, year: Math.floor(abs / 12), month: ((abs % 12) + 12) % 12, text: t(e.k, { ...e.p, crop: cropName(e.p.crop) }) }; });
+  return ev.map((e) => { const abs = start + e.m; return { ...e, year: Math.floor(abs / 12), month: ((abs % 12) + 12) % 12, text: t(e.k, { ...e.p, crop: e.p.v !== undefined ? cropLabel(e.p.crop, e.p.v) : cropName(e.p.crop) }) }; });
 }
 function actionsHTML(r) {
   const ev = actions(r);
@@ -977,7 +977,7 @@ function planList() {
   if (custom) L.push(['custom', `${t('builder')} — ${planText(custom)}`]);
   return L;
 }
-const planText = (r) => r.seq.map((id, i) => cropName(id) + (r.years[i].sec.id ? ` + ${cropName(r.years[i].sec.id)}` : '')).join(' → ');
+const planText = (r) => r.seq.map((id, i) => cropLabel(id, r.years[i].v) + (r.years[i].sec.id ? ` + ${cropName(r.years[i].sec.id)}` : '')).join(' → ');
 const pickPlan = (k) => (k === 'cur' ? res.baseline : k === 'custom' ? custom : res.top[+k]) || res.top[0] || res.baseline;
 function reportSheet(preset) {
   if (preset != null) repOpt.plan = String(preset);
@@ -1032,7 +1032,7 @@ function reportHTML() {
       ${CH.linesChart([{ name: planText(r).slice(0, 40), color: 'var(--s1)', vals: r.socTraj.map(U.tha) }, ...(b && r !== b ? [{ name: t('your_current'), color: 'var(--s2)', vals: b.socTraj.map(U.tha), dash: true }] : [])], t('yr'), `t C/${U.imp ? 'ac' : 'ha'}`)}</section>`);
   }
   if (r && O.actions) h.push(`<section><h2>${esc(t('act_title'))}</h2>${actionsHTML(r)}</section>`);
-  if (r && O.tm && r.hist.length) h.push(`<section><h2>${esc(t('tm_title', { y0: r.hist[0].y, y1: r.hist[r.hist.length - 1].y }))}</h2>${CH.timeMachine(r.hist, r === b ? null : b?.hist, U)}<p class="muted small">${esc(t('tm_fails', { n: r.hist.filter((x) => x.fail).length }))}</p></section>`);
+  if (r && O.tm && r.hist.length) h.push(`<section><h2>${esc(t('tm_title', { y0: r.hist[0].y, y1: r.hist[r.hist.length - 1].y }))}</h2>${CH.timeMachine(r.hist, r === b ? null : b?.hist, U)}<p class="muted small">${esc(t('tm_fails', { n: r.hist.reduce((a, x) => a + (x.fails ?? (x.fail ? 1 : 0)), 0) }))}</p></section>`);
   if (O.methods) h.push(`<section><h2>${esc(t('sec_methods'))}</h2><p class="small">NASA POWER (monthly ${y0}–${y1}, climatology, near-real-time daily) · NASA GIBS · MODIS MOD13Q1 NDVI (ORNL DAAC) · ISRIC SoilGrids 2.0 · FAO Ecocrop / FAO-56. ${esc(t('about_body'))}</p><p class="small"><b>${esc(t('disclaimer'))}</b></p><p class="small muted">https://samuelakosaonyejekwe.github.io/fieldshift/</p></section>`);
   return h.join('');
 }
@@ -1105,7 +1105,7 @@ function renderLab() {
     <h2>📊 ${esc(t('suit_title'))}</h2>
     <div class="chips">${types.map((k) => `<button class="chip ${labFilter === k ? 'on' : ''}" data-act="labF" data-k="${k}">${k === 'all' ? '★' : esc(t('type_' + k))}</button>`).join('')}</div>
     <div class="suit">${rows.map((s) => { const [bk, col] = band(s.S); const c = CROP[s.id]; return `
-      <details class="srow"><summary><span class="s-n">${c.ic} ${esc(cropName(s.id))}</span><span class="s-bar"><i style="width:${Math.round(s.S * 100)}%;background:${col}"></i></span><span class="s-v">${Math.round(s.S * 100)}</span>
+      <details class="srow"><summary><span class="s-n">${c.ic} ${esc(cropLabel(s.id, s.v))}</span><span class="s-bar"><i style="width:${Math.round(s.S * 100)}%;background:${col}"></i></span><span class="s-v">${Math.round(s.S * 100)}</span>
         <span class="s-m">${s.plant != null ? `${monthName(s.plant)}–${monthName(s.harv)}` : ''} ${s.limit ? `· ${esc(t('limit_by'))} ${esc(t('lim_' + s.limit))}` : `· ${esc(t(bk))}`}${s.pFail > 0.1 ? ` · ⚠️ ${esc(t('fails_in', { pct: Math.round(s.pFail * 100) }))}` : ''}</span></summary>
         <div class="s-d">
           ${s.comps ? `<div class="comps">${Object.entries(s.comps).map(([k, x]) => `<span class="${x < 0.7 ? 'lo' : ''}">${esc(t('lim_' + k))} <b>${Math.round(x * 100)}</b></span>`).join('')}</div>` : ''}

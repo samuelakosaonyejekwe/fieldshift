@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Uma lokhu kuqhubeka kwenzeka, buyekeza isiphequluli sakho noma uzame esinye.",
   resetting: "Kusethwa kabusha i-FieldShift…",
   update_browser: "Sicela ubuyekeze isiphequluli sakho ukuze usebenzise i-FieldShift.",
+  var_winter: "yasebusika",
+  var_spring: "yasentwasahlobo",
+  var_standard: "evamile",
+  var_andean: "yase-Andes emelana neqhwa",
+  lim_ripe: "isikhathi sokuvuthwa esibandayo",
 };

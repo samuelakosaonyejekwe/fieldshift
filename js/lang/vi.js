@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "Nếu việc này cứ lặp lại, hãy cập nhật trình duyệt hoặc dùng trình duyệt khác.",
   resetting: "Đang đặt lại FieldShift…",
   update_browser: "Vui lòng cập nhật trình duyệt để dùng FieldShift.",
+  var_winter: "vụ đông",
+  var_spring: "vụ xuân",
+  var_standard: "giống tiêu chuẩn",
+  var_andean: "giống Andes chịu sương giá",
+  lim_ripe: "mùa chín mát lạnh",
 };

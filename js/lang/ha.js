@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Idan wannan ya ci gaba da faruwa, sabunta burauzarka ko gwada wata.",
   resetting: "Ana sake saita FieldShift…",
   update_browser: "Don Allah sabunta burauzarka don amfani da FieldShift.",
+  var_winter: "na lokacin sanyi",
+  var_spring: "na bazara",
+  var_standard: "na yau da kullum",
+  var_andean: "na Andes mai jure sanyi",
+  lim_ripe: "lokacin nunar amfani mai sanyi",
 };

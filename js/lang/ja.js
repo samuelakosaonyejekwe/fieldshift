@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "何度も起こる場合は、ブラウザを更新するか別のブラウザをお試しください。",
   resetting: "FieldShift をリセットしています…",
   update_browser: "FieldShift を使うにはブラウザを更新してください。",
+  var_winter: "秋播き",
+  var_spring: "春播き",
+  var_standard: "標準品種",
+  var_andean: "アンデス耐霜性品種",
+  lim_ripe: "登熟期の低温",
 };

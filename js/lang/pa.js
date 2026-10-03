@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: 'ਜੇ ਇਹ ਵਾਰ-ਵਾਰ ਹੋਵੇ, ਤਾਂ ਆਪਣਾ ਬ੍ਰਾਊਜ਼ਰ ਅੱਪਡੇਟ ਕਰੋ ਜਾਂ ਕੋਈ ਹੋਰ ਵਰਤੋ।',
   resetting: 'FieldShift ਮੁੜ ਸ਼ੁਰੂ ਹੋ ਰਿਹਾ ਹੈ…',
   update_browser: 'FieldShift ਵਰਤਣ ਲਈ ਕਿਰਪਾ ਕਰਕੇ ਆਪਣਾ ਬ੍ਰਾਊਜ਼ਰ ਅੱਪਡੇਟ ਕਰੋ।',
+  var_winter: "ਸਰਦੀਆਂ ਦੀ",
+  var_spring: "ਬਸੰਤ ਦੀ",
+  var_standard: "ਮਿਆਰੀ",
+  var_andean: "ਐਂਡੀਜ਼ ਦੀ ਕੋਰਾ-ਸਹਿਣਸ਼ੀਲ",
+  lim_ripe: "ਪੱਕਣ ਦਾ ਠੰਢਾ ਮੌਸਮ",
 };

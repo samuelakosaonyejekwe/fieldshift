@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Bí èyí bá ń ṣẹlẹ̀ léraléra, ṣe àtúnṣe aṣàwákiri rẹ tàbí gbìyànjú òmíràn.",
   resetting: "A ń tún FieldShift bẹ̀rẹ̀…",
   update_browser: "Jọ̀wọ́ ṣe àtúnṣe aṣàwákiri rẹ láti lo FieldShift.",
+  var_winter: "ìgbà òtútù",
+  var_spring: "ìgbà ìrúwé",
+  var_standard: "àṣà",
+  var_andean: "ti Andes tí ó ń fara da yìnyín",
+  lim_ripe: "àsìkò ìpọ́n tí ó tutù",
 };

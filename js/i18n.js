@@ -249,6 +249,11 @@ export const EN = {
   boot_fail_hint: "If this keeps happening, update your browser or try another one.",
   resetting: "Resetting FieldShift…",
   update_browser: "Please update your browser to use FieldShift.",
+  var_winter: "winter",
+  var_spring: "spring",
+  var_standard: "standard",
+  var_andean: "Andean frost-hardy",
+  lim_ripe: "cool ripening season",
   // crop lab
   lab_title: 'Crop lab', lab_sub: 'How every crop fits your farm, and a builder to test your own rotation.',
   builder: 'Rotation builder', builder_sub: 'Pick a crop for each year and compare with the recommendations.',
@@ -280,7 +285,7 @@ let code = 'en';
 export async function setLang(c) {
   code = LANGS.some(([k]) => k === c) ? c : 'en';
   if (code === 'en') { dict = EN; return; }
-  try { const m = await import(`./lang/${code}.js?v=1.10.0`); dict = { ...EN, ...m.default }; } catch { dict = EN; code = 'en'; }
+  try { const m = await import(`./lang/${code}.js?v=1.11.0`); dict = { ...EN, ...m.default }; } catch { dict = EN; code = 'en'; }
 }
 export const lang = () => code;
 export function t(k, p) {
@@ -289,6 +294,8 @@ export function t(k, p) {
   return s;
 }
 export const cropName = (id) => t('c_' + id);
+// crop with its variety type when it matters ("Wheat (winter)"); the standard type needs no label
+export const cropLabel = (id, v) => (v && v !== 'standard' ? `${t('c_' + id)} (${t('var_' + v)})` : t('c_' + id));
 // Greek month names stand alone in the UI, so they need the nominative (Intl only gives the genitive)
 const EL_LONG = ['Ιανουάριος', 'Φεβρουάριος', 'Μάρτιος', 'Απρίλιος', 'Μάιος', 'Ιούνιος', 'Ιούλιος', 'Αύγουστος', 'Σεπτέμβριος', 'Οκτώβριος', 'Νοέμβριος', 'Δεκέμβριος'];
 export function monthName(m, style = 'short') {

@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Blijft dit gebeuren, werk dan je browser bij of probeer een andere.",
   resetting: "FieldShift wordt hersteld…",
   update_browser: "Werk je browser bij om FieldShift te gebruiken.",
+  var_winter: "winter",
+  var_spring: "zomer",
+  var_standard: "standaard",
+  var_andean: "Andes, vorstbestendig",
+  lim_ripe: "koele afrijpingsperiode",
 };

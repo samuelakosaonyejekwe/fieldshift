@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Ọ bụrụ na nke a anọgide na-eme, melite ihe nchọgharị gị ma ọ bụ nwalee nke ọzọ.",
   resetting: "A na-amalite FieldShift ọzọ…",
   update_browser: "Biko melite ihe nchọgharị gị iji jiri FieldShift.",
+  var_winter: "oge oyi",
+  var_spring: "oge opupu",
+  var_standard: "nkịtị",
+  var_andean: "nke Andes na-anagide oyi",
+  lim_ripe: "oge ịcha nke dị oyi",
 };

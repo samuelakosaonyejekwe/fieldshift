@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: 'বারবার এমন হলে ব্রাউজার আপডেট করুন বা অন্য ব্রাউজার ব্যবহার করুন।',
   resetting: 'FieldShift রিসেট হচ্ছে…',
   update_browser: 'FieldShift ব্যবহার করতে অনুগ্রহ করে আপনার ব্রাউজার আপডেট করুন।',
+  var_winter: "শীতকালীন",
+  var_spring: "বসন্তকালীন",
+  var_standard: "সাধারণ",
+  var_andean: "আন্দিজের তুষার-সহনশীল",
+  lim_ripe: "পাকার ঠান্ডা মৌসুম",
 };

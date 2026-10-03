@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "असे वारंवार होत असल्यास ब्राउझर अपडेट करा किंवा दुसरा ब्राउझर वापरून पाहा.",
   resetting: "FieldShift रीसेट होत आहे…",
   update_browser: "FieldShift वापरण्यासाठी कृपया तुमचा ब्राउझर अपडेट करा.",
+  var_winter: "हिवाळी",
+  var_spring: "वसंत",
+  var_standard: "प्रमाणित",
+  var_andean: "अँडीजची थंडी-सहनशील",
+  lim_ripe: "पिकण्याचा थंड हंगाम",
 };

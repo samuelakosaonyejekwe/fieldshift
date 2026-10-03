@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "Wenn das wiederholt passiert, aktualisieren Sie Ihren Browser oder probieren Sie einen anderen.",
   resetting: "FieldShift wird zurückgesetzt…",
   update_browser: "Bitte aktualisieren Sie Ihren Browser, um FieldShift zu nutzen.",
+  var_winter: "Winter",
+  var_spring: "Sommer",
+  var_standard: "Standard",
+  var_andean: "Anden, frosthart",
+  lim_ripe: "kühle Abreifezeit",
 };

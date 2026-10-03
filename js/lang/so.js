@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "Haddii tani sii socoto, cusbooneysii browser-kaaga ama isku day mid kale.",
   resetting: "FieldShift dib ayaa loo dejinayaa…",
   update_browser: "Fadlan cusbooneysii browser-kaaga si aad u isticmaasho FieldShift.",
+  var_winter: "jiilaal",
+  var_spring: "gu'",
+  var_standard: "caadi ah",
+  var_andean: "Andes u adkaysta barafka",
+  lim_ripe: "xilli bislaansho oo qabow",
 };

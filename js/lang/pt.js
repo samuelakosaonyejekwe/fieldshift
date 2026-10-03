@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "Se isso continuar acontecendo, atualize o navegador ou experimente outro.",
   resetting: "Redefinindo o FieldShift…",
   update_browser: "Atualize seu navegador para usar o FieldShift.",
+  var_winter: "de inverno",
+  var_spring: "de primavera",
+  var_standard: "padrão",
+  var_andean: "andina resistente à geada",
+  lim_ripe: "estação de maturação fria",
 };

@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "ఇది మళ్లీ మళ్లీ జరిగితే, మీ బ్రౌజర్‌ను అప్‌డేట్ చేయండి లేదా వేరొకటి ప్రయత్నించండి.",
   resetting: "FieldShift రీసెట్ అవుతోంది…",
   update_browser: "FieldShift ఉపయోగించడానికి దయచేసి మీ బ్రౌజర్‌ను అప్‌డేట్ చేయండి.",
+  var_winter: "శీతాకాలపు",
+  var_spring: "వసంతకాలపు",
+  var_standard: "ప్రామాణిక",
+  var_andean: "ఆండీస్ మంచు తట్టుకునే",
+  lim_ripe: "చల్లని పక్వ దశ",
 };

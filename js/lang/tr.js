@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "Bu tekrar ederse tarayıcınızı güncelleyin veya başka bir tarayıcı deneyin.",
   resetting: "FieldShift sıfırlanıyor…",
   update_browser: "FieldShift'i kullanmak için lütfen tarayıcınızı güncelleyin.",
+  var_winter: "kışlık",
+  var_spring: "yazlık",
+  var_standard: "standart",
+  var_andean: "And dağları, dona dayanıklı",
+  lim_ripe: "serin olgunlaşma dönemi",
 };

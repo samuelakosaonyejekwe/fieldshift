@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "Если это повторяется, обновите браузер или попробуйте другой.",
   resetting: "Сброс FieldShift…",
   update_browser: "Обновите браузер, чтобы пользоваться FieldShift.",
+  var_winter: "озимая",
+  var_spring: "яровая",
+  var_standard: "стандартная",
+  var_andean: "андская морозостойкая",
+  lim_ripe: "прохладным периодом созревания",
 };

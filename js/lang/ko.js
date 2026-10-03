@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "계속 이런 일이 생기면 브라우저를 업데이트하거나 다른 브라우저를 사용해 보세요.",
   resetting: "FieldShift 초기화 중…",
   update_browser: "FieldShift를 사용하려면 브라우저를 업데이트하세요.",
+  var_winter: "가을뿌림",
+  var_spring: "봄뿌림",
+  var_standard: "표준 품종",
+  var_andean: "안데스 내상성 품종",
+  lim_ripe: "서늘한 등숙기",
 };

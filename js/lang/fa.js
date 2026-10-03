@@ -243,4 +243,9 @@ export default {
   boot_fail_hint: "اگر این مشکل تکرار شد، مرورگر خود را به‌روز کنید یا مرورگر دیگری را امتحان کنید.",
   resetting: "در حال بازنشانی FieldShift…",
   update_browser: "برای استفاده از FieldShift لطفاً مرورگر خود را به‌روز کنید.",
+  var_winter: "پاییزه",
+  var_spring: "بهاره",
+  var_standard: "معمولی",
+  var_andean: "آندی مقاوم به یخبندان",
+  lim_ripe: "فصل رسیدن سرد",
 };

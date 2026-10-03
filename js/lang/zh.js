@@ -262,4 +262,9 @@ export default {
   boot_fail_hint: "如果此问题反复出现，请更新浏览器或换一个浏览器。",
   resetting: "正在重置 FieldShift…",
   update_browser: "请更新浏览器以使用 FieldShift。",
+  var_winter: "冬性",
+  var_spring: "春性",
+  var_standard: "普通品种",
+  var_andean: "安第斯耐霜品种",
+  lim_ripe: "成熟期气温偏低",
 };
