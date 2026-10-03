@@ -1,8 +1,8 @@
 // FieldShift — interface controller
-import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.3';
-import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.3';
-import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.3';
-import * as CH from './charts.js?v=1.9.3';
+import { CROPS, CROP, MAIN_CROPS, COVER_CROPS, FAMILIES, famColor } from './crops.js?v=1.9.4';
+import { t, setLang, lang, LANGS, RTL, cropName, monthName, guessLang } from './i18n.js?v=1.9.4';
+import { DEMOS, loadDemo, monthsIn, fetchFarmData, fetchSoil, buildClimate, climateInsights, parseSoil, DEFAULT_SOIL, textureClass, fetchNDVI, fetchRecent, recentAnomaly, geocode, reverseGeocode } from './data.js?v=1.9.4';
+import * as CH from './charts.js?v=1.9.4';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.9.3';
+export const APP_VERSION = '1.9.4';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
@@ -121,7 +121,7 @@ const pending = new Map();
 let engineMod = null;
 function startWorker() {
   try {
-    worker = new Worker(new URL('./worker.js?v=1.9.3', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=1.9.4', import.meta.url), { type: 'module' });
     worker.onmessage = (e) => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); e.data.ok ? p.res(e.data.res) : p.rej(new Error(e.data.err)); } };
     worker.onerror = () => { worker = null; for (const [, p] of pending) p.retry(); pending.clear(); };
   } catch { worker = null; }
@@ -138,7 +138,7 @@ async function call(type, extra = {}) {
   return callLocal(msg);
 }
 async function callLocal(msg) {
-  engineMod = engineMod || await import('./engine.js?v=1.9.3');
+  engineMod = engineMod || await import('./engine.js?v=1.9.4');
   const b = base;
   if (msg.type === 'recommend') return engineMod.recommend(b, msg.inp);
   if (msg.type === 'shift') return engineMod.cropShift(b, msg.inp);
@@ -238,6 +238,7 @@ function sizeCharts() {
 window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => { const w = document.documentElement.clientWidth; if (Math.abs(w - (window._lw || 0)) > 40) { window._lw = w; sizeCharts(); if (['climate'].includes(S.tab)) go(S.tab); } }, 250); });
 
 function go(tab, fromHistory = false) {
+  if ($('#sheet') && !$('#sheet').hidden) closeSheet();
   if (!S.farm && tab !== 'farm' && tab !== 'about') tab = 'farm';
   S.tab = tab; save();
   // switch the page first, so navigation can never get stuck on a rendering problem
@@ -267,7 +268,14 @@ async function heal() {
 function bindGlobal() {
   document.addEventListener('click', (e) => {
     const g = e.target.closest('[data-go]');
-    if (g) { e.preventDefault(); go(g.dataset.go); return; }
+    if (g) {
+      // tab links: the browser changes the address itself and everything follows the address (single source of truth)
+      if (g.tagName === 'A' && g.getAttribute('href') === '#' + g.dataset.go) {
+        if (location.hash === '#' + g.dataset.go && S.tab !== g.dataset.go) { e.preventDefault(); go(g.dataset.go, true); }
+        return;
+      }
+      e.preventDefault(); go(g.dataset.go); return;
+    }
     const a = e.target.closest('[data-act]');
     if (a) {
       try { const r = ACT[a.dataset.act]?.(a, e); if (r?.catch) r.catch(fail); } catch (err) { fail(err); }
@@ -308,7 +316,12 @@ async function showDiag() {
 }
 
 // ---------------- Busy / toast ----------------
-function busy(msg) { const b = $('#busy'); if (!b) return; b.hidden = !msg; if (msg) $('#busyMsg').textContent = msg; }
+let busyT;
+function busy(msg) {
+  const b = $('#busy'); if (!b) return;
+  b.hidden = !msg; if (msg) $('#busyMsg').textContent = msg;
+  clearTimeout(busyT); if (msg) busyT = setTimeout(() => { b.hidden = true; }, 45000); // never block the screen indefinitely
+}
 function toast(msg, ms = 3200) {
   let el = $('#toast');
   if (!el) { el = document.createElement('div'); el.id = 'toast'; el.setAttribute('role', 'status'); document.body.append(el); }

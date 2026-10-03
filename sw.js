@@ -1,5 +1,5 @@
 // FieldShift service worker: app shell offline, NASA/soil data network-first with cache fallback.
-const VER = 'fieldshift-1.9.3';
+const VER = 'fieldshift-1.9.4';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/app.js', 'js/boot.js', 'js/data.js', 'js/engine.js', 'js/crops.js', 'js/charts.js', 'js/i18n.js', 'js/worker.js',

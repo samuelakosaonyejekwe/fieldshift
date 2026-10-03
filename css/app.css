@@ -302,7 +302,7 @@ select { border: 1px solid var(--line); border-radius: 10px; background: var(--s
 .prose li { margin-bottom: .4rem; }
 
 /* busy & toast */
-.busy { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 80; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem 1.3rem; box-shadow: 0 10px 40px rgba(0,0,0,.25); display: flex; gap: .8rem; align-items: center; max-width: 90vw; }
+.busy { pointer-events: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 80; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem 1.3rem; box-shadow: 0 10px 40px rgba(0,0,0,.25); display: flex; gap: .8rem; align-items: center; max-width: 90vw; }
 .busy[hidden] { display: none; }
 .spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--track); border-top-color: var(--brand); animation: rot 0.8s linear infinite; flex: none; }
 @keyframes rot { to { transform: rotate(360deg); } }
