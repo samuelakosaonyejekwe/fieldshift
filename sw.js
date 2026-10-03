@@ -1,10 +1,10 @@
 // FieldShift service worker: app shell offline, NASA/soil data network-first with cache fallback.
-const VER = 'fieldshift-v6';
+const VER = 'fieldshift-v7';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/app.js', 'js/data.js', 'js/engine.js', 'js/crops.js', 'js/charts.js', 'js/i18n.js', 'js/worker.js',
 ];
-const LANG_FILES = ['es', 'fr', 'pt', 'sw', 'hi', 'ar', 'zh', 'bn', 'ru', 'ur', 'id', 'de', 'ja', 'tr', 'vi', 'fa', 'it', 'ha', 'yo', 'ig', 'am', 'ta', 'te', 'mr', 'pa'].map((l) => `js/lang/${l}.js`);
+const LANG_FILES = ['es', 'fr', 'pt', 'sw', 'hi', 'ar', 'zh', 'bn', 'ru', 'ur', 'id', 'de', 'ja', 'tr', 'vi', 'fa', 'it', 'ha', 'yo', 'ig', 'am', 'ta', 'te', 'mr', 'pa', 'el', 'ko', 'th', 'uk', 'pl', 'nl', 'tl', 'ms', 'ne', 'so', 'zu', 'om'].map((l) => `js/lang/${l}.js`);
 // offline pack: every demo farm (fetched in the background after install)
 const DEMOS = ["addis", "bangladesh", "cordoba", "france", "free_state", "fresno", "heilongjiang", "iowa", "java", "kano", "lilongwe", "matogrosso", "mekong", "nakuru", "nile", "pampas", "peru", "punjab", "saskatoon", "sinaloa", "tamale", "ukraine", "wagga"].map((d) => `data/demo/${d}.json`);
 self.addEventListener('install', (e) => {

@@ -17,7 +17,7 @@ Pick a field (search, GPS, map or demo farm) → FieldShift pulls 30 years of NA
 - **Season so far** — the last 90 days of NASA POWER near-real-time data versus normal, with advice for the current season.
 - **Practical action plan** — month-by-month tasks (sow, inoculate, fertilise, irrigate, cover crop, harvest) exportable to any phone calendar.
 - **Runs everywhere, for everyone** — no server, no sign-up, no framework; ~60 KB gzipped; installable on Android, iPhone/iPad and desktop; works offline and in airplane mode (23 demo farms pre-cached); NASA data refreshes automatically when online.
-- **26 languages** — English, 中文, हिन्दी, Español, Français, العربية, বাংলা, Português, Русский, اردو, Bahasa Indonesia, Deutsch, 日本語, Kiswahili, मराठी, తెలుగు, Türkçe, தமிழ், Tiếng Việt, فارسی, Hausa, ਪੰਜਾਬੀ, Italiano, Yorùbá, Igbo, አማርኛ — with right-to-left layouts and a warm baritone read-aloud voice.
+- **38 languages** — English, 中文, हिन्दी, Español, Français, العربية, বাংলা, Português, Русский, اردو, Bahasa Indonesia, Deutsch, 日本語, Kiswahili, मराठी, తెలుగు, Türkçe, தமிழ், Tiếng Việt, فارسی, Hausa, ਪੰਜਾਬੀ, Italiano, Yorùbá, Igbo, አማርኛ, Ελληνικά, 한국어, ไทย, Українська, Polski, Nederlands, Filipino, Bahasa Melayu, नेपाली, Soomaali, isiZulu, Afaan Oromoo — with right-to-left layouts and a warm baritone read-aloud voice.
 - **In-app guide** (❓ in the top bar) lists every feature and where to find it.
 
 ## NASA & open data used

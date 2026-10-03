@@ -20,7 +20,7 @@ const DEF = {
   prices: { n: 1.1, irr: 0.15 }, overrides: {}, saved: [],
   builder: { seq: [], sec: [] },
 };
-export const APP_VERSION = '1.6.0';
+export const APP_VERSION = '1.7.0';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let S = load();
 let raw = null, base = null, ins = null, res = null, shift = null, ndvi = null, custom = null, openPlan = null, recent = null;
@@ -1003,7 +1003,7 @@ async function openMap() {
 }
 
 // ---------------- Speech, share, print ----------------
-const VOICE = { en: 'en-US', es: 'es-ES', fr: 'fr-FR', pt: 'pt-BR', sw: 'sw-KE', hi: 'hi-IN', ar: 'ar-SA', zh: 'zh-CN', bn: 'bn-IN', ru: 'ru-RU', ur: 'ur-PK', id: 'id-ID', de: 'de-DE', ja: 'ja-JP', tr: 'tr-TR', vi: 'vi-VN', fa: 'fa-IR', it: 'it-IT', ha: 'ha-NG', yo: 'yo-NG', ig: 'ig-NG', am: 'am-ET', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN', pa: 'pa-IN' };
+const VOICE = { en: 'en-US', es: 'es-ES', fr: 'fr-FR', pt: 'pt-BR', sw: 'sw-KE', hi: 'hi-IN', ar: 'ar-SA', zh: 'zh-CN', bn: 'bn-IN', ru: 'ru-RU', ur: 'ur-PK', id: 'id-ID', de: 'de-DE', ja: 'ja-JP', tr: 'tr-TR', vi: 'vi-VN', fa: 'fa-IR', it: 'it-IT', ha: 'ha-NG', yo: 'yo-NG', ig: 'ig-NG', am: 'am-ET', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN', pa: 'pa-IN', el: 'el-GR', ko: 'ko-KR', th: 'th-TH', uk: 'uk-UA', pl: 'pl-PL', nl: 'nl-NL', tl: 'fil-PH', ms: 'ms-MY', ne: 'ne-NP', so: 'so-SO', zu: 'zu-ZA', om: 'om-ET' };
 function planSpeech(r, idx) {
   const parts = r.seq.map((id, i) => {
     const y = r.years[i];

@@ -4,7 +4,9 @@ export const LANGS = [
   ['bn', 'বাংলা'], ['pt', 'Português'], ['ru', 'Русский'], ['ur', 'اردو'], ['id', 'Bahasa Indonesia'], ['de', 'Deutsch'],
   ['ja', '日本語'], ['sw', 'Kiswahili'], ['mr', 'मराठी'], ['te', 'తెలుగు'], ['tr', 'Türkçe'], ['ta', 'தமிழ்'],
   ['vi', 'Tiếng Việt'], ['fa', 'فارسی'], ['ha', 'Hausa'], ['pa', 'ਪੰਜਾਬੀ'], ['it', 'Italiano'], ['yo', 'Yorùbá'],
-  ['ig', 'Igbo'], ['am', 'አማርኛ'],
+  ['ig', 'Igbo'], ['am', 'አማርኛ'], ['el', 'Ελληνικά'], ['ko', '한국어'], ['th', 'ไทย'], ['uk', 'Українська'],
+  ['pl', 'Polski'], ['nl', 'Nederlands'], ['tl', 'Filipino'], ['ms', 'Bahasa Melayu'], ['ne', 'नेपाली'], ['so', 'Soomaali'],
+  ['zu', 'isiZulu'], ['om', 'Afaan Oromoo'],
 ];
 export const RTL = new Set(['ar', 'fa', 'ur']);
 
