@@ -1,0 +1,17 @@
+{
+  "name": "FieldShift — Adapting farms with NASA data",
+  "short_name": "FieldShift",
+  "description": "Crop-rotation decision support from NASA Earth observations, soil maps and crop science.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f2ec",
+  "theme_color": "#1f6f4a",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

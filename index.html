@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FieldShift — NASA-powered crop rotation planner</title>
+<meta name="description" content="FieldShift turns 30 years of NASA Earth observations, global soil maps and crop science into crop-rotation plans that build soil health and adapt farms to a changing climate. Free, offline-ready, multilingual.">
+<meta name="theme-color" content="#1f6f4a" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10251b" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:title" content="FieldShift — Adapting farms with NASA data">
+<meta property="og:description" content="Crop rotations that protect soil, save water and survive tomorrow's weather — for any field on Earth.">
+<meta property="og:image" content="icons/og.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://power.larc.nasa.gov" crossorigin>
+<link rel="modulepreload" href="js/app.js">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <div class="boot"><svg viewBox="0 0 40 40" width="56" height="56"><circle cx="20" cy="20" r="19" fill="#1f6f4a"/><path d="M6 27c6-3 10-3 14 0s9 3 14 0" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M6 21c6-3 10-3 14 0s9 3 14 0" stroke="#ffd36e" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><p>FieldShift</p></div>
+</div>
+<div id="tip" class="tip" hidden role="tooltip"></div>
+<noscript><p style="padding:2rem;font-family:sans-serif">FieldShift needs JavaScript enabled.</p></noscript>
+<script type="module" src="js/app.js"></script>
+<script nomodule>document.getElementById('app').innerHTML='<p style="padding:2rem;font-family:sans-serif">Please update your browser to use FieldShift.</p>';</script>
+</body>
+</html>
